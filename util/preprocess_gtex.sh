@@ -1,8 +1,9 @@
 #!/bin/bash
-#SBATCH --ntasks=1
-#SBATCH --mem=64g
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=64gb
 #SBATCH --time=1:00:00
-#SBATCH --tmp=10g
 #SBATCH --partition=msismall,msilarge,msibigmem
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=malak039@umn.edu
@@ -10,16 +11,22 @@
 
 module load R/4.3.0-openblas
 
+tar -xf raw/bulk-qtl_v8_single-tissue-cis-qtl_GTEx_Analysis_v8_eQTL_EUR.tar
+gunzip raw/references_v8_GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.lookup_table.txt.gz
+
 awk -v OFS='\t' 'NR > 6 && $1 ~ /^chr[1-9]/ && $3 == "transcript" {print $16,$10,$1,$4,$5,$14}' \
-          raw/gencode.v26.GRCh38.genes.gtf | tr -d ";\"" > annotations.txt
+          raw/references_v8_gencode.v26.GRCh38.genes.gtf | tr -d ";\"" > annotations.txt
+
+mkdir expression
+mkdir covariates
+mkdir pairs
+
+Rscript --vanilla util/gtex_scripts.R
 
 ./plink --vcf raw/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.SHAPEIT2_phased.vcf.gz \
           --const-fid \
           --make-bed \
           --out TEMP1
-
-awk -v FS='\t' -v OFS='\t' '(NR > 11) && ($6 == "3") {print "0",$2}' \
-          raw/phs000424.v8.pht002742.v8.p2.c1.GTEx_Subject_Phenotypes.GRU.txt > TEMP_EUR.txt
 
 ./plink --bfile TEMP1 \
           --keep TEMP_EUR.txt \
@@ -52,7 +59,7 @@ awk -v FS='\t' -v OFS='\t' '(NR > 11) && ($6 == "3") {print "0",$2}' \
           --out TEMP7
 
 awk -v FS='\t' -v OFS='\t' 'NR > 1 && length($4) == 1 && length($5) == 1 && $7 != "." {print $1,$7}' \
-          raw/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.lookup_table.txt > TEMP_rsids.txt
+          raw/references_v8_GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.lookup_table.txt > TEMP_rsids.txt
 
 ./plink --bfile TEMP7 \
           --update-name TEMP_rsids.txt \
@@ -85,10 +92,4 @@ do
 done
 
 rm TEMP*
-
-mkdir expression
-mkdir covariates
-mkdir pairs
-
-Rscript --vanilla util/gtex_scripts.R
 

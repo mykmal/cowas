@@ -1,8 +1,9 @@
 #!/bin/bash
-#SBATCH --ntasks=1
-#SBATCH --mem=64g
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=64gb
 #SBATCH --time=96:00:00
-#SBATCH --tmp=10g
 #SBATCH --partition=msismall,msilarge,msibigmem
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=malak039@umn.edu
@@ -12,18 +13,18 @@ module load R/4.3.0-openblas
 
 # Specify a file that lists pairs of genes for which to train COWAS weights.
 # This should be a text file with one tab-separated pair of gene names per line.
-GENES=pairs/Brain_Cortex_split/Brain_Cortex_chr22_part000
+GENES=pairs/Whole_Blood_chr1_part000
 
 # Suffix that will be appended to the name of the .pos output file.
 # This is useful when a single chromosome is split across several gene pair lists.
 SUFFIX=000
 
 # Chromosome number corresponding to the gene pairs in $GENES
-CHR=22
+CHR=1
 
 # Name of the tissue for which to train models.
 # This should match the prefix of the relevant expression/covariate file names.
-TISSUE=Brain_Cortex
+TISSUE=Whole_Blood
 
 # Directory for storing COWAS weights and performance metrics.
 OUT=/scratch.global/malak039_output
@@ -71,7 +72,7 @@ fi
 COWAS_TEMP=${OUT}/temp/${GENE_A}_${GENE_B}
 mkdir ${COWAS_TEMP}
 
-# Expands 1 Mb before the transcription start site
+# Expands 1 Mb before the transcription start site
 START_WINDOW_A=$(( ${START_A} - 1000000 ))
 if (( ${START_WINDOW_A} < 0 )); then
 START_WINDOW_A=0

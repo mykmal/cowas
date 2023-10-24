@@ -51,6 +51,8 @@ tissues <-
     "Whole_Blood"
   )
 
+eur_individuals <- as.data.frame(matrix(data = NA, nrow = 1, ncol = 2))
+
 for (tissue in tissues) {
   
   expression <- read.table(file = paste0("raw/expression_matrices/", tissue, ".v8.EUR.normalized_expression.bed.gz"),
@@ -63,6 +65,7 @@ for (tissue in tissues) {
   
   FID <- matrix(0L, nrow = nrow(expression) - 1, ncol = 1)
   individuals <- cbind(FID, expression[, 1][-1])
+  eur_individuals <- rbind(eur_individuals, individuals)
   write.table(individuals, file = paste0("expression/", tissue, ".individuals.txt"),
               quote = FALSE, row.names = FALSE, col.names = FALSE)
   
@@ -71,7 +74,7 @@ for (tissue in tissues) {
   covariates[1, 1] <- "IID"
   write.table(covariates, file = paste0("covariates/", tissue, ".covariates.txt"),
               quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
-
+  
   annotations <- read.table(file = "annotations.txt", header = FALSE)
   measured_genes <- expression[1, -1]
   
@@ -83,4 +86,9 @@ for (tissue in tissues) {
                 quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
   }
 }
+
+eur_individuals <- eur_individuals[-1, ]
+eur_individuals <- eur_individuals[!duplicated(eur_individuals), ]
+write.table(eur_individuals, file = paste0("TEMP_EUR.txt"),
+            quote = FALSE, row.names = FALSE, col.names = FALSE)
 
