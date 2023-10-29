@@ -3,7 +3,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=64gb
-#SBATCH --time=1:00:00
+#SBATCH --time=5:00:00
 #SBATCH --partition=msismall,msilarge,msibigmem
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=malak039@umn.edu
@@ -11,8 +11,10 @@
 
 module load R/4.3.0-openblas
 
-tar -xf raw/bulk-qtl_v8_single-tissue-cis-qtl_GTEx_Analysis_v8_eQTL_EUR.tar
-gunzip raw/references_v8_GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.lookup_table.txt.gz
+cd raw
+tar -xf bulk-qtl_v8_single-tissue-cis-qtl_GTEx_Analysis_v8_eQTL_EUR.tar
+gunzip references_v8_GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.lookup_table.txt.gz
+cd ..
 
 awk -v OFS='\t' 'NR > 6 && $1 ~ /^chr[1-9]/ && $3 == "transcript" {print $16,$10,$1,$4,$5,$14}' \
           raw/references_v8_gencode.v26.GRCh38.genes.gtf | tr -d ";\"" > annotations.txt

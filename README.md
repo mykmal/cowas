@@ -39,9 +39,9 @@ First, create a subfolder named `raw` within your unpacked COWAS folder. Then do
 * `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.lookup_table.txt.gz` (from the Reference tab)
 * `gencode.v26.GRCh38.genes.gtf` (from the Reference tab)
 
-To obtain individual-level genotype data from the GTEx Project you will need to submit an application through [dbGaP](https://www.ncbi.nlm.nih.gov/gap/). After obtaining access to the data under accession number phs000424.v8.p2, follow the dbGaP documentation to download the following file to `cowas/raw`:
+To obtain individual-level genotype data from the GTEx Project you will need to submit an application through [dbGaP](https://www.ncbi.nlm.nih.gov/gap/). After obtaining access to the data under accession number phs000424.v8.p2, follow the dbGaP documentation to download and extract the following file to `cowas/raw`:
 
-* `phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1.GRU.tar'
+* `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.SHAPEIT2_phased.vcf.gz` (from the archive `phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1.GRU.tar')
 
 Finally, run the shell script `util/preprocess_gtex.sh` from within the main COWAS folder. This will perform extensive quality control steps on the genotype data, reformat the expression matrices and expression covariates, create an annotation file with all GTEx gene transcripts, and create files listing all gene pairs available for each tissue. The `cowas/raw` folder can be deleted after the script successfully finishes.
 
