@@ -115,7 +115,7 @@ TrainCowasModels <- function(z_a, z_b, z_both, x_a, x_b) {
                         family = "gaussian", type.measure = "mse",
                         alpha = opt$elnet_alpha, nfolds = 5, intercept = FALSE)
   
-  return(list(model_a, model_b, model_co))
+  return(list(model_a = model_a, model_b = model_b, model_co = model_co))
 }
 
 
@@ -238,10 +238,9 @@ remove <- genotypes_b[, .SD, .SDcols = !"IID"
 suppressWarnings(genotypes_b[, (remove) := NULL])
 
 # Create a data table with all cis-SNPs for both genes
-common_cols <- intersect(names(genotypes_a), names(genotypes_b))
-unique_cols_b <- c("IID", setdiff(names(genotypes_b), common_cols))
-genotypes_both <- genotypes_a[genotypes_b[, ..unique_cols_b],
-                              on = "IID", nomatch = 0]
+genotypes_both <- cbind(genotypes_a, genotypes_b)
+duplicated_snps <- which(duplicated(names(genotypes_both)))
+genotypes_both <- suppressWarnings(genotypes_both[, (duplicated_snps) := NULL])
 
 # Update the snp annotation matrix
 snps <- snps[V2 %in% names(genotypes_both)]
@@ -282,9 +281,9 @@ if (opt$cv_folds > 1) {
     genotypes_b_train <- genotypes_b_shuffled[!test_indices]
     genotypes_both_train <- genotypes_both_shuffled[!test_indices]
     
-    genotypes_a_test <- genotypes_a_shuffled[test_indices]
-    genotypes_b_test <- genotypes_b_shuffled[test_indices]
-    genotypes_both_test <- genotypes_both_shuffled[test_indices]
+    genotypes_a_test <- as.matrix(genotypes_a_shuffled[test_indices, !"IID"])
+    genotypes_b_test <- as.matrix(genotypes_b_shuffled[test_indices, !"IID"])
+    genotypes_both_test <- as.matrix(genotypes_both_shuffled[test_indices, !"IID"])
     
     expression_a_train <- scale(expression_shuffled[!test_indices][[opt$gene_a]])
     expression_b_train <- scale(expression_shuffled[!test_indices][[opt$gene_b]])
@@ -315,20 +314,20 @@ if (opt$cv_folds > 1) {
   if (sd(imputed[, "gene_a"]) > 0 && sd(imputed[, "gene_b"]) > 0 && sd(imputed[, "coexpression"]) > 0) {
     imputed <- imputed[expression[, IID], ]
     
-    a_fit <- summary(lm(expression_a ~ imputed[["gene_a"]]))
-    b_fit <- summary(lm(expression_b ~ imputed[["gene_b"]]))
+    a_fit <- summary(lm(expression_a ~ imputed[, "gene_a"]))
+    b_fit <- summary(lm(expression_b ~ imputed[, "gene_b"]))
     
-    coexpression <- scale((expression_a - imputed[["gene_a"]]) * (expression_b - imputed[["gene_b"]]))
-    coexpression_fit <- summary(lm(coexpression[, 1] ~ imputed[["coexpression"]]))
+    coexpression <- scale((expression_a - imputed[, "gene_a"]) * (expression_b - imputed[, "gene_b"]))
+    coexpression_fit <- summary(lm(coexpression[, 1] ~ imputed[, "coexpression"]))
     
     # R^2 of the expression and co-expression models
-    cv.performance["rsq", "model_a"] <- a_fit$adj.r.squared
-    cv.performance["rsq", "model_b"] <- b_fit$adj.r.squared
+    cv.performance["rsq", "gene_a"] <- a_fit$adj.r.squared
+    cv.performance["rsq", "gene_b"] <- b_fit$adj.r.squared
     cv.performance["rsq", "coexpression"] <- coexpression_fit$adj.r.squared
     
     # P-value from an F-test comparing each fitted model to a null model
-    cv.performance["pval", "model_a"] <- a_fit$coefficients[2, 4]
-    cv.performance["pval", "model_b"] <- b_fit$coefficients[2, 4]
+    cv.performance["pval", "gene_a"] <- a_fit$coefficients[2, 4]
+    cv.performance["pval", "gene_b"] <- b_fit$coefficients[2, 4]
     cv.performance["pval", "coexpression"] <- coexpression_fit$coefficients[2, 4]
     
     if (opt$verbose) {
@@ -344,7 +343,7 @@ if (opt$cv_folds > 1) {
     cv.performance["pval", ] <- c(1, 1, 1)
     
     if (opt$verbose) {
-      message("All cross-validated predictions are constant. Models for this gene pair will not be saved.")
+      message("Cross-validated predictions for some models are constant. Models for this gene pair will not be saved.")
     }
   }
 }
@@ -352,8 +351,8 @@ if (opt$cv_folds > 1) {
 
 # If significant, train elastic net models on the full sample ------------------------------------
 
-if (cv.performance["pval", "model_a"] < opt$p_threshold
-    && cv.performance["pval", "model_b"] < opt$p_threshold
+if (cv.performance["pval", "gene_a"] < opt$p_threshold
+    && cv.performance["pval", "gene_b"] < opt$p_threshold
     && cv.performance["pval", "coexpression"] < opt$p_threshold) {
   if (opt$verbose) message("Learning full-sample eQTL weights")
   
