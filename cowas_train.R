@@ -97,23 +97,26 @@ TrainCowasModels <- function(z_a, z_b, z_both, x_a, x_b) {
   # Fit an elastic net model for gene_a
   model_a <- cv.glmnet(x = z_a, y = x_a,
                        family = "gaussian", type.measure = "mse",
-                       alpha = opt$elnet_alpha, nfolds = 5, intercept = FALSE)
+                       alpha = opt$elnet_alpha, nfolds = 5,
+                       standardize = FALSE, intercept = TRUE)
   
   # Fit an elastic net model for gene_b
   model_b <- cv.glmnet(x = z_b, y = x_b,
                        family = "gaussian", type.measure = "mse",
-                       alpha = opt$elnet_alpha, nfolds = 5, intercept = FALSE)
+                       alpha = opt$elnet_alpha, nfolds = 5,
+                       standardize = FALSE, intercept = TRUE)
   
   # Calculate the correlation between the expression of gene_a and gene_b,
   # conditional on cis-SNPs for both genes
   x_a_imputed <- predict(model_a, newx = z_a, s = "lambda.1se", type = "response")
   x_b_imputed <- predict(model_b, newx = z_b, s = "lambda.1se", type = "response")
-  coex <- scale((x_a - x_a_imputed) * (x_b - x_b_imputed))
+  coex <- scale((x_a - x_a_imputed) * (x_b - x_b_imputed))[, 1]
   
   # Fit an elastic net model for the co-expression of gene_a and gene_b
   model_co <- cv.glmnet(x = z_both, y = coex,
                         family = "gaussian", type.measure = "mse",
-                        alpha = opt$elnet_alpha, nfolds = 5, intercept = FALSE)
+                        alpha = opt$elnet_alpha, nfolds = 5,
+                        standardize = FALSE, intercept = TRUE)
   
   return(list(model_a = model_a, model_b = model_b, model_co = model_co))
 }
@@ -131,7 +134,7 @@ if (!dir.exists(opt$out)) {
 
 if (opt$verbose) {
   message("Processing genes ", opt$gene_a, " and ", opt$gene_b)
-  message("TWAS weights and performance metrics for significant models will be saved in ", opt$out)
+  message("SNP weights and performance metrics for significant models will be saved in ", opt$out)
 }
 
 
@@ -285,8 +288,8 @@ if (opt$cv_folds > 1) {
     genotypes_b_test <- as.matrix(genotypes_b_shuffled[test_indices, !"IID"])
     genotypes_both_test <- as.matrix(genotypes_both_shuffled[test_indices, !"IID"])
     
-    expression_a_train <- scale(expression_shuffled[!test_indices][[opt$gene_a]])
-    expression_b_train <- scale(expression_shuffled[!test_indices][[opt$gene_b]])
+    expression_a_train <- scale(expression_shuffled[!test_indices][[opt$gene_a]])[, 1]
+    expression_b_train <- scale(expression_shuffled[!test_indices][[opt$gene_b]])[, 1]
     
     cv_cowas_models <- TrainCowasModels(genotypes_a_train,
                                         genotypes_b_train,
@@ -310,7 +313,7 @@ if (opt$cv_folds > 1) {
     if (opt$verbose) message("Finished fold ", k, " of ", opt$cv_folds)
   }
   
-  # Save performance metrics as long as all three models were able to predict some variation
+  # Compute performance metrics as long as all three models were able to predict some variation
   if (sd(imputed[, "gene_a"]) > 0 && sd(imputed[, "gene_b"]) > 0 && sd(imputed[, "coexpression"]) > 0) {
     imputed <- imputed[expression[, IID], ]
     
@@ -362,12 +365,12 @@ if (cv.performance["pval", "gene_a"] < opt$p_threshold
                                    expression_a,
                                    expression_b)
   
-  # Don't save the intercept term because it is forced to be zero
+  # Don't save the intercept terms because they will always be numerically zero
   wgt.matrix.a <- as.matrix(coef(cowas_models$model_a, s = "lambda.1se")[-1, ])
   wgt.matrix.b <- as.matrix(coef(cowas_models$model_b, s = "lambda.1se")[-1, ])
   wgt.matrix.co <- as.matrix(coef(cowas_models$model_co, s = "lambda.1se")[-1, ])
   
-  # As long as the models are not null, save all variables needed for COWAS
+  # As long as some SNP weights are nonzero, save all variables needed for COWAS
   if (sd(wgt.matrix.a[, 1]) > 0 && sd(wgt.matrix.b[, 1]) > 0 && sd(wgt.matrix.co[, 1]) > 0) {
     colnames(wgt.matrix.a) <- "gene_a"
     colnames(wgt.matrix.b) <- "gene_b"
@@ -377,7 +380,7 @@ if (cv.performance["pval", "gene_a"] < opt$p_threshold
     save(wgt.matrix.a, wgt.matrix.b, wgt.matrix.co, snps, cv.performance, N.tot,
          file = paste0(opt$out, "/", opt$gene_a, "_", opt$gene_b, "_wgt.RData"))
   } else {
-    if (opt$verbose) message("All weights are zero. This model will not be saved.")
+    if (opt$verbose) message("All weights are zero. Models for the current gene pair will not be saved.")
   }
 }
 

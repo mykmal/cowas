@@ -38,7 +38,7 @@ printf "TISSUE = ${TISSUE}\n"
 printf "OUT = ${OUT}\n\n"
 
 if ( [ ! -f ${OUT}/GTExv8.EUR.${TISSUE}.CHR${CHR}_${SUFFIX}.pos ] ); then
-printf "PANEL\tWGT\tID\tCHR\tP0\tP1\tN\n" > ${OUT}/GTExv8.EUR.${TISSUE}.CHR${CHR}_${SUFFIX}.pos
+printf "PANEL\tWGT\tCHR\tID_A\tP0_A\tP1_A\tID_B\tP0_B\tP1_B\tN\n" > ${OUT}/GTExv8.EUR.${TISSUE}.CHR${CHR}_${SUFFIX}.pos
 fi
 
 # Reads names of genes with available expression measurements
@@ -128,11 +128,12 @@ cat ${COWAS_TEMP}/${GENE_A}.bim ${COWAS_TEMP}/${GENE_B}.bim > ${COWAS_TEMP}/both
           --expression expression/${TISSUE}.expression.txt \
           --covariates covariates/${TISSUE}.covariates.txt \
           --snps ${COWAS_TEMP}/both.snps \
-          --out ${OUT}/GTExv8.EUR.${TISSUE}.CHR${CHR}_${SUFFIX}
+          --out ${OUT}/GTExv8.EUR.${TISSUE}.CHR${CHR}_${SUFFIX} \
+          --p_threshold 0.05
 
 if ( [ -f ${OUT}/GTExv8.EUR.${TISSUE}.CHR${CHR}_${SUFFIX}/${GENE_A}_${GENE_B}_wgt.RData ] ); then
 N=$( wc -l expression/${TISSUE}.individuals.txt | awk '{print $1}' )
-printf "GTExv8.EUR.${TISSUE}.CHR${CHR}\tGTExv8.EUR.${TISSUE}.CHR${CHR}/${GENE_A}_${GENE_B}_wgt.RData\t${GENE_A}_${GENE_B}\t${CHR}\t${START_A}\t${START_B}\t${N}\n" \
+printf "GTExv8.EUR.${TISSUE}.CHR${CHR}\tGTExv8.EUR.${TISSUE}.CHR${CHR}/${GENE_A}_${GENE_B}_wgt.RData\t${CHR}\t${GENE_A}\t${START_A}\t${END_A}\t${GENE_B}\t${START_B}\t${END_B}\t${N}\n" \
           >> ${OUT}/GTExv8.EUR.${TISSUE}.CHR${CHR}_${SUFFIX}.pos
 fi
 
