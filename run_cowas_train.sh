@@ -7,13 +7,13 @@
 #SBATCH --partition=msismall,msilarge,msibigmem
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=malak039@umn.edu
-#SBATCH -o logs/%j.out
+#SBATCH -o logs/Whole_Blood_chr1/%j.out
 
 module load R/4.3.0-openblas
 
 # Specify a file that lists pairs of genes for which to train COWAS weights.
 # This should be a text file with one tab-separated pair of gene names per line.
-GENES=pairs/Whole_Blood_chr1_part000
+GENES=pairs/Whole_Blood_split/Whole_Blood_chr1_part000
 
 # Suffix that will be appended to the name of the .pos output file.
 # This is useful when a single chromosome is split across several gene pair lists.
