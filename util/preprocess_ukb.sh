@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
-#SBATCH --mem=64gb
+#SBATCH --mem=124gb
 #SBATCH --time=96:00:00
 #SBATCH --partition=agsmall,aglarge,ag2tb
 #SBATCH --mail-type=FAIL
@@ -20,37 +20,42 @@ Rscript --vanilla util/preprocess_ukb_helper1.R
 for CHROM in {1..22}
 do
 plink2 --pfile raw/ukb_chr${CHROM} \
+       --threads 30 \
+       --memory 120000 \
        --keep TEMP_high_quality_samples.txt \
        --make-pgen \
        --out TEMP_LOOP_1
 
 plink2 --pfile TEMP_LOOP_1 \
-       --max-alleles 2 \
+       --threads 30 \
+       --memory 120000 \
+       --geno 0 \
        --make-pgen \
        --out TEMP_LOOP_2
 
 plink2 --pfile TEMP_LOOP_2 \
-       --geno 0 \
-       --make-pgen \
-       --out TEMP_LOOP_3
-
-plink2 --pfile TEMP_LOOP_3 \
+       --threads 30 \
+       --memory 120000 \
        --hwe 1e-6 midp \
        --nonfounders \
        --make-pgen \
-       --out TEMP_LOOP_4
+       --out TEMP_LOOP_3
 
-awk -v FS='\t' '$3 !~ /^rs/ {print $3}' TEMP_LOOP_4.pvar > TEMP_LOOP_no_rsid.txt
+awk -v FS='\t' '$3 !~ /^rs/ {print $3}' TEMP_LOOP_3.pvar > TEMP_LOOP_no_rsid.txt
 
-plink2 --pfile TEMP_LOOP_4 \
+plink2 --pfile TEMP_LOOP_3 \
+       --threads 30 \
+       --memory 120000 \
        --exclude TEMP_LOOP_no_rsid.txt \
        --make-pgen \
-       --out TEMP_LOOP_5
+       --out TEMP_LOOP_4
 
 awk -v FS='\t' '($4 == "A" && $5 == "T") || ($4 == "T" && $5 == "A") || ($4 == "C" && $5 == "G") || ($4 == "G" && $5 == "C") {print $3}' \
-          TEMP_LOOP_5.pvar > TEMP_LOOP_palindromic.txt
+          TEMP_LOOP_4.pvar > TEMP_LOOP_palindromic.txt
 
-plink2 --pfile TEMP_LOOP_5 \
+plink2 --pfile TEMP_LOOP_4 \
+       --threads 30 \
+       --memory 120000 \
        --exclude TEMP_LOOP_palindromic.txt \
        --make-pgen \
        --out TEMP_FINAL_CHR${CHROM}
@@ -69,6 +74,8 @@ Rscript --vanilla util/preprocess_ukb_helper2.R
 for CHROM in {1..22}
 do
 plink2 --pfile TEMP_FINAL_CHR${CHROM} \
+       --threads 30 \
+       --memory 120000 \
        --extract TEMP_mutual_variants.txt \
        --make-pgen \
        --out genotypes/ukb_filtered_${CHROM}
@@ -83,10 +90,14 @@ ukb_filtered_16\nukb_filtered_17\nukb_filtered_18\nukb_filtered_19\nukb_filtered
 ukb_filtered_21\nukb_filtered_22\n" > TEMP_plink_files.txt
 
 plink2 --pmerge-list TEMP_plink_files.txt pfile \
+       --threads 30 \
+       --memory 120000 \
        --pmerge-list-dir genotypes \
        --out TEMP_merged
 
 plink2 --pfile TEMP_merged \
+       --threads 30 \
+       --memory 120000 \
        --snps-only just-acgt \
        --make-pgen \
        --out TEMP_STEP1
@@ -117,30 +128,35 @@ printf "1 48000000 52000000\n\
 20 32000000 34500000\n" > TEMP_long_range_ld.txt
 
 plink2 --pfile TEMP_STEP1 \
+       --threads 30 \
+       --memory 120000 \
        --exclude bed1 TEMP_long_range_ld.txt \
        --make-pgen \
        --out TEMP_STEP2
 
 plink2 --pfile TEMP_STEP2 \
+       --threads 30 \
+       --memory 120000 \
        --min-af 0.01 \
        --make-pgen \
        --out TEMP_STEP3
 
 plink2 --pfile TEMP_STEP3 \
-       --geno 0.015 \
+       --threads 30 \
+       --memory 120000 \
+       --indep-pairwise 1000 80 0.1 \
+       --out TEMP_indep_variants
+
+plink2 --pfile TEMP_STEP3 \
+       --threads 30 \
+       --memory 120000 \
+       --extract TEMP_indep_variants \
        --make-pgen \
        --out TEMP_STEP4
 
 plink2 --pfile TEMP_STEP4 \
-       --indep-pairwise 1000 80 0.1 \
-       --out TEMP_indep_variants
-
-plink2 --pfile TEMP_STEP4 \
-       --extract TEMP_indep_variants \
-       --make-pgen \
-       --out TEMP_STEP5
-
-plink2 --pfile TEMP_STEP5 \
+       --threads 30 \
+       --memory 120000 \
        --pca 20 scols=sid \
        --out TEMP_top20_pcs
 

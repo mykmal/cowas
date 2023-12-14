@@ -156,12 +156,12 @@ if (is.na(opt$covariates)) {
   
   # Subset to the common set of individuals
   individuals <- Reduce(intersect,
-                        list(genotypes_a[, IID],
-                             genotypes_b[, IID],
-                             expression[, IID]))
-  genotypes_a <- genotypes_a[individuals]
-  genotypes_b <- genotypes_b[individuals]
-  expression <- expression[individuals]
+                        list(genotypes_a$IID,
+                             genotypes_b$IID,
+                             expression$IID))
+  genotypes_a <- genotypes_a[IID %in% individuals]
+  genotypes_b <- genotypes_b[IID %in% individuals]
+  expression <- expression[IID %in% individuals]
   
   # Normalize expression levels for each gene
   for (gene in c(opt$gene_a, opt$gene_b)) {
@@ -181,14 +181,14 @@ if (is.na(opt$covariates)) {
   
   # Subset to the common set of individuals (including covariates in the intersection)
   individuals <- Reduce(intersect,
-                        list(genotypes_a[, IID],
-                             genotypes_b[, IID],
-                             expression[, IID],
-                             covariates[, IID]))
-  genotypes_a <- genotypes_a[individuals]
-  genotypes_b <- genotypes_b[individuals]
-  expression <- expression[individuals]
-  covariates <- covariates[individuals]
+                        list(genotypes_a$IID,
+                             genotypes_b$IID,
+                             expression$IID,
+                             covariates$IID))
+  genotypes_a <- genotypes_a[IID %in% individuals]
+  genotypes_b <- genotypes_b[IID %in% individuals]
+  expression <- expression[IID %in% individuals]
+  covariates <- covariates[IID %in% individuals]
   
   for (gene in c(opt$gene_a, opt$gene_b)) {
     regression <- covariates[, summary(lm(expression[[gene]] ~ ., data = .SD)),

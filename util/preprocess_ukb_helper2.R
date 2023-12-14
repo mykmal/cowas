@@ -1,16 +1,20 @@
 library(data.table)
 
-ukb_variants <- fread(file = "TEMP_all_ukb_variants.pvar", header = TRUE, stringsAsFactors = FALSE, select = c("ID", "REF", "ALT"))
+ukb_variants <- fread(file = "TEMP_all_ukb_variants.pvar", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE, select = c("ID", "REF", "ALT"))
 gwas <- fread(file = "raw/GCST90027158_buildGRCh38.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE)
 
-gwas_variants <- gwas[, c("variant_id", "effect_allele", "other_allele")]
+# The Bellenguez et al. GWAS has some rows with identical rsIDs, positions, effect alleles, and alternate alleles but different p-values and allele frequencies
+# This seems to be a mistake in the data, so we remove all such rows
+duplicated_variants <- gwas[duplicated(gwas[, c("variant_id", "effect_allele", "other_allele")]), ]$variant_id
+print(paste("WARNING:", nrow(gwas[variant_id %in% duplicated_variants, ]), "duplicated rows removed from the Bellenguez et al. GWAS"))
+gwas <- gwas[!variant_id %in% duplicated_variants, ]
 
-mutual_variants <- merge(ukb_variants, gwas_variants, by.x = "ID", by.y = "variant_id", sort = FALSE)
-mutual_variants <- mutual_variants[(REF == effect_allele & ALT == other_allele) | (REF == other_allele & ALT == effect_allele)]
-mutual_variants <- mutual_variants$ID
+gwas_mutual_variants <- merge(gwas, ukb_variants, by.x = "variant_id", by.y = "ID", sort = FALSE)
+gwas_mutual_variants <- gwas_mutual_variants[(effect_allele == REF & other_allele == ALT) | (effect_allele == ALT & other_allele == REF), ]
+gwas_mutual_variants[, c("REF", "ALT") := NULL]
 
-gwas <- gwas[variant_id %in% mutual_variants]
+variants_keep <- gwas_mutual_variants$variant_id
 
-fwrite(mutual_variants, file = "TEMP_mutual_variants.txt", quote = FALSE, col.names = FALSE, eol = "\n", compress = "none")
-fwrite(gwas, file = "gwas/Bellenguez_2022_AD_gwas.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
+write.table(variants_keep, file = "TEMP_mutual_variants.txt", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+fwrite(gwas_mutual_variants, file = "gwas/Bellenguez_2022_AD_gwas.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
 
