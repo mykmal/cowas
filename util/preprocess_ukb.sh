@@ -144,7 +144,7 @@ plink2 --pfile TEMP_STEP2 \
 plink2 --pfile TEMP_STEP3 \
        --threads 30 \
        --memory 120000 \
-       --indep-pairwise 1000 80 0.1 \
+       --indep-pairwise 1000 100 0.1 \
        --out TEMP_indep_variants
 
 plink2 --pfile TEMP_STEP3 \
@@ -157,11 +157,11 @@ plink2 --pfile TEMP_STEP3 \
 plink2 --pfile TEMP_STEP4 \
        --threads 30 \
        --memory 120000 \
-       --pca 20 scols=sid \
+       --pca 20 \
        --out TEMP_top20_pcs
 
-join -t "\t" -j 1 --check-order phenotypes/covariates_nopc.tsv TEMP_top20_pcs.eigenvec > phenotypes/covariates.tsv
-rm phenotypes/covariates_nopc.tsv
+Rscript --vanilla util/preprocess_ukb_helper3.R
 
+rm phenotypes/covariates_nopc.tsv
 rm TEMP*
 

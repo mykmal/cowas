@@ -17,22 +17,33 @@ write.table(protein_pairs, file = "phenotypes/protein_pairs.tsv", quote = FALSE,
 ukb_main_dataset <- ukb_main_dataset[f.22020.0.0 == 1 & f.22006.0.0 == 1, ]
 
 # Reformat the main dataset
-ukb_main_dataset[, c("f.54.1.0", "f.54.2.0", "f.54.3.0", "f.22006.0.0", "f.22020.0.0") := NULL]
+ukb_main_dataset[, c("f.54.1.0", "f.54.2.0", "f.54.3.0", "f.21003.1.0", "f.21003.2.0", "f.21003.3.0", "f.22006.0.0", "f.22020.0.0") := NULL]
 ukb_main_dataset <- na.omit(ukb_main_dataset)
-setnames(ukb_main_dataset, c("IID", "SEX", "BIRTH_YEAR", "ASSESSMENT_CENTER", "MEASUREMENT_BATCH"))
+setnames(ukb_main_dataset, c("IID", "SEX", "ASSESSMENT_CENTER", "AGE", "MEASUREMENT_BATCH"))
+
+# Create interaction variables for age and sex
+ukb_main_dataset[, AGE := as.integer(AGE)]
+ukb_main_dataset[, SEX := as.integer(SEX)]
+ukb_main_dataset[, AGE2 := AGE^2]
+ukb_main_dataset[, AGE_SEX := AGE * SEX]
+ukb_main_dataset[, AGE2_SEX := AGE2 * SEX]
 
 # Create dummy variables for ASSESSMENT_CENTER and MEASUREMENT_BATCH
 center_ids <- unique(ukb_main_dataset$ASSESSMENT_CENTER)[-1]
-ukb_main_dataset[, (paste0("ASSESSMENT_CENTER_", center_ids)) := lapply(center_ids, function(x) ifelse(ASSESSMENT_CENTER == x, 1, 0))]
+ukb_main_dataset[, paste0("ASSESSMENT_CENTER_", center_ids) := lapply(center_ids, function(x) ifelse(ASSESSMENT_CENTER == x, 1, 0))]
 ukb_main_dataset[, AXIOM_ARRAY := ifelse(MEASUREMENT_BATCH > 0, 1, 0)]
 ukb_main_dataset[, c("ASSESSMENT_CENTER", "MEASUREMENT_BATCH") := NULL]
+ukb_main_dataset[, c("IID", "AGE", "AGE2", "SEX", "AGE_SEX", "AGE2_SEX", paste0("ASSESSMENT_CENTER_", center_ids), "AXIOM_ARRAY")]
 
 # Reformat the proteomics data
 olink_data <- olink_data[ins_index == 0, ]
 olink_data[, ins_index := NULL]
 olink_data <- na.omit(olink_data)
 olink_data <- dcast(olink_data, eid ~ protein_id, value.var = "result")
-setnames(olink_data, "eid", "IID")
+all_proteins <- sort(as.integer(names(olink_data)[-1]))
+olink_data[, c("eid", all_proteins)]
+setnames(olink_data, paste0("protein_", names(olink_data)))
+setnames(olink_data, "protein_eid", "IID")
 
 # Subset all datasets to a common set of samples
 common_samples <- Reduce(intersect,
