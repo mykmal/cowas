@@ -4,9 +4,7 @@ This repository provides a set of tools for performing co-expression wide associ
 
 COWAS is run on one pair of proteins at a time. First, three models are trained on an individual-level reference dataset. One model predicts the expression of the first protein, another model predicts the expression of the second protein, and the third model predicts the co-expression of the two proteins. Then the fitted model weights are used to impute the expression level of each protein and their co-expression into summary-level disease GWAS data. Finally, disease status is jointly tested for association with the imputed expression and co-expression levels. By considering the effect of protein-protein interactions on disease in addition to direct effects, COWAS can identify novel disease-relevant proteins and aid in the interpretation of GWAS findings.
 
-# Software documentation
-
-## Installation
+# Installation
 
 1. Download and unpack the COWAS repository from GitHub.
 ```bash
@@ -14,7 +12,7 @@ wget https://github.com/mykmal/cowas/archive/main.zip
 unzip main.zip && rm main.zip
 mv cowas-main cowas && cd cowas
 ```
-2. Launch R and install the packages optparse, data.table, and glmnet. We used R 4.3.0, optparse 1.7.3, data.table 1.14.10, and glmnet 4.1.8.
+2. Launch R and install the packages optparse, data.table, and glmnet. We used R 4.3.0, optparse 1.7.4, data.table 1.14.10, and glmnet 4.1.8.
 ```R
 install.packages(c("optparse", "data.table", "glmnet"))
 ```
@@ -25,13 +23,9 @@ unzip plink2_linux_amd_avx2_20240105.zip && rm plink2_linux_amd_avx2_20240105.zi
 sudo mv plink2 /usr/local/bin/
 ```
 
-## Stage 1: Training co-expression imputation models
+# Part 1: Data preparation and QC
 
-## Stage 2: Testing for association between co-expression and disease
-
-# Appendix: Applying COWAS to UK Biobank data
-
-This appendix describes how to obtain and prepare the data we used in our paper.
+This section describes how to obtain and prepare the data we used in our paper.
 
 ## UK Biobank downloads
 
@@ -50,7 +44,7 @@ Next, use PLINK to convert the genotype data to PLINK 2 binary format. Our scrip
 
 ## Protein annotations
 
-To facilitate reproducibility, we provide an annotation file for the UK Biobank proteomics data (located at `util/olink_annotations.tsv` in this repository). We created the annotation file by first merging UK Biobank [Resource 1013](https://biobank.ndph.ox.ac.uk/showcase/refer.cgi?id=1013) with UK Biobank [Data-Coding 143](https://biobank.ndph.ox.ac.uk/showcase/coding.cgi?id=143) by gene name. We noticed that one entry (ukb_code 1912) was missing a UniProt ID, so we filled in the correct value from UniProt KB. Next, we exported an annotation file from [Ensembl BioMart GRCh37](https://grch37.ensembl.org/biomart/martview) with the attributes Gene name, Chromosome/scaffold name, Gene start (bp), Gene end (bp), and UniProtKB/Swiss-Prot ID. After removing entries with patched scaffolds from the BioMart file, we merged it with our annotation file by UniProt ID. Two entries (ukb_code 3 and 163) had multiple matches, so we selected the correct one by comparing gene names. Additionally, we manually looked up the GRCh37 genomic coordinates for 39 entries that were not present in the BioMart file using GeneCards. For 13 entries with multiple genes separated by an underscore and located on the same chromosome (e.g. BOLA2_BOLA2B), we took the union of their genomic regions. Two entries (ukb_code 876 and 1364) correspond to two genes each located on separate chromosomes, so for these we used the coordinates of the second gene. Finally, two other entries (ukb_code 1500 and 2157) correspond to genes for which no mapping exists on the GRCh37 assembly, so we only recorded their chromosomes and excluded them from our analysis.
+To facilitate reproducibility, we provide an annotation file for the UK Biobank proteomics data (located at `util/olink_annotations.tsv` in this repository). We created the annotation file by first merging UK Biobank [Resource 1013](https://biobank.ndph.ox.ac.uk/showcase/refer.cgi?id=1013) with UK Biobank [Data-Coding 143](https://biobank.ndph.ox.ac.uk/showcase/coding.cgi?id=143) by gene name. We noticed that one entry (ukb_code 1912) was missing a UniProt ID, so we filled in the correct value from [UniProt KB](https://www.uniprot.org/). Next, we exported an annotation file from [Ensembl BioMart GRCh37](https://grch37.ensembl.org/biomart/martview) with the attributes Gene name, Chromosome/scaffold name, Gene start (bp), Gene end (bp), and UniProtKB/Swiss-Prot ID. After removing entries with patched scaffolds from the BioMart file, we merged it with our annotation file by UniProt ID. Two entries (ukb_code 3 and 163) had multiple matches, so we selected the correct one by comparing gene names. Additionally, we manually looked up the GRCh37 genomic coordinates for 39 entries that were not present in the BioMart file using [GeneCards](https://www.genecards.org/). For 13 entries with multiple genes separated by an underscore and located on the same chromosome (e.g. BOLA2_BOLA2B), we took the union of their genomic regions. Two entries (ukb_code 876 and 1364) correspond to two genes each located on separate chromosomes, so for these we used the coordinates of the second gene. Finally, two other entries (ukb_code 1500 and 2157) correspond to genes for which no mapping exists on the GRCh37 assembly, so we only recorded their chromosomes and excluded them from our analysis.
 
 ## Alzheimer's disease GWAS
 
@@ -60,11 +54,13 @@ We used summary statistics data from the Alzheimer's disease GWAS published by B
 
 Run the shell script `util/preprocess_ukb.sh` from within the main COWAS folder to process the downloaded data. This script will perform the following data wrangling and quality control steps:
 
-1. Create the file `phenotypes/protein_pairs.tsv` listing all possible pairs of proteins that have autosomal genomic coordinates available, with one pair per row.
+1. Create the file `phenotypes/unique_proteins.tsv` listing all proteins that have autosomal genomic coordinates available, with one protein per row. Also create the file `phenotypes/protein_pairs.tsv` listing all possible pairs of these proteins, with one pair per row.
 2. Subset the main dataset to obtain a set of high-quality, unrelated, White British samples and subset the proteomics data to obtain the set of samples assessed at the initial visit. Then subset the genotype data, proteomics data, and covariate data to a common set of samples.
 3. Remove variants from the UK Biobank genotype data that have any missingness, fail a Hardy-Weinberg equilibrium test, lack an rsID, or are palindromic. Remove all rows in the AD GWAS that are duplicated by rsID, effect allele, and reference allele; such entries should not exist and represent an error in the GWAS. After this, subset the UK Biobank genotype data and the AD GWAS data to a common set of variants. The filtered genotype and GWAS data are saved to the folders `cowas/genotypes` and `cowas/gwas`, respectively.
 4. Compute the top 20 genetic principal components from the quality-controlled genotype data. Following best practices, before computing PCs we remove all indels, SNPs in regions of long-range LD, and SNPs with MAF < 0.01. We also prune the remaining SNPs to r^2 < 0.1 with a 1000 bp window and a step size of 100 bp.
 5. Create the file `phenotypes/covariates.tsv` with one row per sample and 48 columns for sample ID, age, age^2, sex, age * sex, age^2 * sex, UKB assessment center (coded as 21 binary dummy variables), genotyping array (binary), and the first 20 genetic PCs. Finally, create the file `phenotypes/proteins.tsv` with one row per sample and one column per protein.
 
 The `cowas/raw` folder can be deleted after the preprocessing script successfully finishes.
+
+# Part 2: Testing for association between co-expression and disease
 

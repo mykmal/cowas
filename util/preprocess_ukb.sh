@@ -150,7 +150,7 @@ plink2 --pfile TEMP_STEP3 \
 plink2 --pfile TEMP_STEP3 \
        --threads 30 \
        --memory 120000 \
-       --extract TEMP_indep_variants \
+       --extract TEMP_indep_variants.prune.in \
        --make-pgen \
        --out TEMP_STEP4
 
