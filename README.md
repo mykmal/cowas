@@ -23,7 +23,7 @@ unzip plink2_linux_amd_avx2_20240105.zip && rm plink2_linux_amd_avx2_20240105.zi
 sudo mv plink2 /usr/local/bin/
 ```
 
-# Part 1: Data preparation and QC
+# Data preparation and QC
 
 This section describes how to obtain and prepare the data we used in our paper.
 
@@ -54,10 +54,10 @@ We used summary statistics data from the Alzheimer's disease GWAS published by B
 
 Run the shell script `util/preprocess_ukb.sh` from within the main COWAS folder to process the downloaded data. This script will perform the following data wrangling and quality control steps:
 
-1. Create the file `phenotypes/unique_proteins.tsv` listing all proteins that have autosomal genomic coordinates available, with one protein per row. Also create the file `phenotypes/protein_pairs.tsv` listing all possible pairs of these proteins, with one pair per row.
+1. Create the file `phenotypes/protein_pairs.tsv` listing all possible pairs of proteins that have autosomal genomic coordinates available, with one pair per row.
 2. Subset the main dataset to obtain a set of high-quality, unrelated, White British samples and subset the proteomics data to obtain the set of samples assessed at the initial visit. Then subset the genotype data, proteomics data, and covariate data to a common set of samples.
-3. Remove variants from the UK Biobank genotype data that have any missingness, fail a Hardy-Weinberg equilibrium test, lack an rsID, or are palindromic. Remove all rows in the AD GWAS that are duplicated by rsID, effect allele, and reference allele; such entries should not exist and represent an error in the GWAS. After this, subset the UK Biobank genotype data and the AD GWAS data to a common set of variants. The filtered genotype and GWAS data are saved to the folders `cowas/genotypes` and `cowas/gwas`, respectively.
-4. Compute the top 20 genetic principal components from the quality-controlled genotype data. Following best practices, before computing PCs we remove all indels, SNPs in regions of long-range LD, and SNPs with MAF < 0.01. We also prune the remaining SNPs to r^2 < 0.1 with a 1000 bp window and a step size of 100 bp.
+3. Remove variants from the UK Biobank genotype data that have a call rate <= 0.99, fail a Hardy-Weinberg equilibrium test, lack an rsID, or are palindromic. Remove all rows in the AD GWAS that are duplicated by rsID, effect allele, and reference allele; such entries should not exist and represent an error in the GWAS. After this, subset the UK Biobank genotype data and the AD GWAS data to a common set of variants. The filtered genotype and GWAS data are saved to the folders `cowas/genotypes` and `cowas/gwas`, respectively.
+4. Compute the top 20 genetic principal components from the quality-controlled genotype data. Following best practices, before computing PCs we remove all indels, SNPs in regions of long-range LD, and SNPs with MAF < 0.01. We also prune the remaining SNPs to R^2 < 0.1 with a 1000 bp window and a step size of 100 bp.
 5. Create the file `phenotypes/covariates.tsv` with one row per sample and 48 columns for sample ID, age, age^2, sex, age * sex, age^2 * sex, UKB assessment center (coded as 21 binary dummy variables), genotyping array (binary), and the first 20 genetic PCs. Finally, create the file `phenotypes/proteins.tsv` with one row per sample and one column per protein.
 
 The `cowas/raw` folder can be deleted after the preprocessing script successfully finishes.
