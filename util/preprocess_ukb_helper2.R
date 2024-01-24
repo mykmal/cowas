@@ -13,6 +13,8 @@ gwas_mutual_variants <- merge(gwas, ukb_variants, by.x = "variant_id", by.y = "I
 gwas_mutual_variants <- gwas_mutual_variants[(effect_allele == REF & other_allele == ALT) | (effect_allele == ALT & other_allele == REF), ]
 gwas_mutual_variants[, c("REF", "ALT") := NULL]
 
+gwas_mutual_variants[, z_score := as.numeric(beta) / as.numeric(standard_error)]
+
 variants_keep <- gwas_mutual_variants$variant_id
 
 write.table(variants_keep, file = "TEMP_mutual_variants.txt", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)

@@ -22,7 +22,7 @@ ukb_main_dataset[, AGE_SEX := AGE * SEX]
 ukb_main_dataset[, AGE2_SEX := AGE2 * SEX]
 
 # Create dummy variables for ASSESSMENT_CENTER and MEASUREMENT_BATCH
-center_ids <- unique(ukb_main_dataset$ASSESSMENT_CENTER)[-1]
+center_ids <- sort(as.integer(unique(ukb_main_dataset$ASSESSMENT_CENTER)))[-1]
 ukb_main_dataset[, paste0("ASSESSMENT_CENTER_", center_ids) := lapply(center_ids, function(x) ifelse(ASSESSMENT_CENTER == x, 1, 0))]
 ukb_main_dataset[, AXIOM_ARRAY := ifelse(MEASUREMENT_BATCH > 0, 1, 0)]
 ukb_main_dataset[, c("ASSESSMENT_CENTER", "MEASUREMENT_BATCH") := NULL]
@@ -48,24 +48,26 @@ ukb_main_dataset <- ukb_main_dataset[IID %in% common_samples, ]
 olink_data <- olink_data[IID %in% common_samples, ]
 
 # Remove columns that have NAs or have become constant after the subsetting
-remove_main <- ukb_main_dataset[, .SD, .SDcols = !"IID"
-                                ][, names(.SD), .SDcols = function(x) anyNA(x) || var(x) <= 0]
-suppressWarnings(ukb_main_dataset[, (remove_main) := NULL])
+for (column in names(ukb_main_dataset)[-1]) {
+  if (anyNA(ukb_main_dataset[[column]]) || var(ukb_main_dataset[[column]]) <= 0) {
+    ukb_main_dataset[, (column) := NULL]
+  }
+}
 
 # Remove columns that have become fully NA after the subsetting
 # Note that here we allow some NAs to remain because none of the individuals have data for all proteins
-remove_olink <- olink_data[, .SD, .SDcols = !"IID"
-                           ][, names(.SD), .SDcols = function(x) all(is.na(x))]
-suppressWarnings(olink_data[, (remove_olink) := NULL])
+for (column in names(olink_data)[-1]) {
+  if (all(is.na(olink_data[[column]]))) {
+    olink_data[, (column) := NULL]
+  }
+}
 
-# Create files listing the proteins and pairs of proteins to analyze
+# Create a file listing the pairs of proteins to analyze
 olink_annotations <- olink_annotations[chr_hg19 %in% 1:22, ]
 olink_annotations[, ukb_code := paste0("protein_", ukb_code)]
 olink_annotations <- olink_annotations[ukb_code %in% names(olink_data), ]
 unique_proteins <- unique(olink_annotations$ukb_code)
-protein_pairs <- expand.grid(unique_proteins, unique_proteins)
-write.table(unique_proteins, file = "phenotypes/unique_proteins.tsv", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
-write.table(protein_pairs, file = "phenotypes/protein_pairs.tsv", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+protein_pairs <- t(combn(unique_proteins, 2))
 
 # Put the samples in a format compatible with PLINK's --keep command
 plink_keep_samples <- as.data.frame(cbind(common_samples, common_samples))
@@ -74,5 +76,6 @@ names(plink_keep_samples) <- c("#FID", "IID")
 # Save the formatted datasets
 fwrite(ukb_main_dataset, file = "phenotypes/covariates_nopc.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
 fwrite(olink_data, file = "phenotypes/proteins.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
+write.table(protein_pairs, file = "phenotypes/protein_pairs.tsv", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 write.table(plink_keep_samples, file = "TEMP_high_quality_samples.txt", quote = FALSE, sep = "\t", row.names = FALSE)
 

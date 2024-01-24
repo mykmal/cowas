@@ -29,7 +29,7 @@ plink2 --pfile raw/ukb_chr${CHROM} \
 plink2 --pfile TEMP_LOOP_1 \
        --threads 30 \
        --memory 120000 \
-       --geno 0 \
+       --geno 0.01 \
        --make-pgen \
        --out TEMP_LOOP_2
 
