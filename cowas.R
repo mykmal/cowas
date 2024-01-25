@@ -105,9 +105,9 @@ setnames(genotypes, gsub(pattern = "_.*", replacement = "", x = names(genotypes)
 
 # Fill in missing calls with the mode for each variant
 # This is a reasonable imputation method when the missingness rate is very low
-for (variant %in% names(genotypes)[-1]) {
+for (variant in names(genotypes)[-1]) {
   mode <- names(which.max(table(genotypes[[variant]])))
-  set(x = genotypes, which(is.na(genotypes[[variant]])), variant, mode)
+  set(x = genotypes, i = which(is.na(genotypes[[variant]])), j = variant, value = mode)
 }
 
 # If covariates were not provided, simply normalize the expression data
@@ -158,7 +158,7 @@ if (is.na(opt$covariates)) {
 
 # Read variants and remove duplicates from overlapping cis-regions
 snps <- fread(file = opt$snps, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE,
-              select = c("ID", "REF"," ALT"))
+              select = c("ID", "REF", "ALT"))
 snps <- snps[ID != "ID", ]
 snps <- snps[!duplicated(ID), ]
 
@@ -168,7 +168,7 @@ genotypes <- genotypes[, ..keep]
 
 # Normalize the genotype data for each variant, and then remove the SNP if it's monomorphic
 for (rsid in names(genotypes)[-1]) {
-  set(x = genotypes, rsid, scale(genotypes[[rsid]]))
+  set(x = genotypes, j = rsid, value = scale(genotypes[[rsid]]))
   if (anyNA(genotypes[[rsid]]) || var(genotypes[[rsid]]) <= 0) {
     genotypes[, (rsid) := NULL]
   }
@@ -186,7 +186,7 @@ gwas <- na.omit(gwas)
 gwas <- merge(gwas, snps, by.x = "variant_id", by.y = "ID", sort = FALSE)
 
 # Flip the GWAS summary statistics when necessary
-gwas <- gwas[(effect_allele == ALT && other_allele == REF) || (effect_allele == REF && other_allele == ALT), ]
+gwas <- gwas[(effect_allele == ALT & other_allele == REF) | (effect_allele == REF & other_allele == ALT), ]
 gwas[effect_allele != ALT, flipped := TRUE]
 gwas[flipped == TRUE, `:=` (effect_allele_flipped = other_allele,
                             other_allele_flipped = effect_allele,

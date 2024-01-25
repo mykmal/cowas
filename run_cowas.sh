@@ -102,7 +102,7 @@ plink2 --pfile genotypes/ukb_filtered_${CHR_A} \
        --to-bp ${END_WINDOW_A} \
        --export A \
        --export-allele ${COWAS_TEMP}/A_alleles.tsv \
-       --make-just-pvar cols=maybeinfo \
+       --make-just-pvar cols=maybecm \
        --out ${COWAS_TEMP}/${PROTEIN_A}
 plink2 --pfile genotypes/ukb_filtered_${CHR_B} \
        --silent \
@@ -111,7 +111,7 @@ plink2 --pfile genotypes/ukb_filtered_${CHR_B} \
        --to-bp ${END_WINDOW_B} \
        --export A \
        --export-allele ${COWAS_TEMP}/B_alleles.tsv \
-       --make-just-pvar cols=maybeinfo \
+       --make-just-pvar cols=maybecm \
        --out ${COWAS_TEMP}/${PROTEIN_B}
 
 if ( [ ! -f ${COWAS_TEMP}/${PROTEIN_A}.raw ] || [ ! -f ${COWAS_TEMP}/${PROTEIN_B}.raw ] ); then
