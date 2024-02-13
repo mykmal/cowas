@@ -87,11 +87,11 @@ plink2 --pfile TEMP_merged \
        --memory 120000 \
        --extract TEMP_mutual_variants.txt \
        --make-pgen \
-       --out genotypes/ukb_filtered
+       --out data_cleaned/ukb_filtered
 
 rm TEMP*
 
-plink2 --pfile genotypes/ukb_filtered \
+plink2 --pfile data_cleaned/ukb_filtered \
        --threads 30 \
        --memory 120000 \
        --snps-only just-acgt \
