@@ -1,10 +1,9 @@
 library(data.table)
 
 # Load data
-ukb_main_dataset <- fread(file = "raw/ukb_main_dataset.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE)
-olink_data <- fread(file = "raw/olink_data.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE)
-genotyped_samples <- fread(file = "raw/ukb_chr1.psam", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE, select = 2)
-olink_annotations <- fread(file = "util/olink_annotations.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE)
+ukb_main_dataset <- fread(file = "data_raw/ukb_main_dataset.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE)
+olink_data <- fread(file = "data_raw/olink_data.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE)
+genotyped_samples <- fread(file = "data_raw/ukb_chr1.psam", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE, select = 2)
 
 # Subset to high-quality, unrelated, White British samples
 ukb_main_dataset <- ukb_main_dataset[f.22020.0.0 == 1 & f.22006.0.0 == 1, ]
@@ -15,8 +14,8 @@ ukb_main_dataset <- na.omit(ukb_main_dataset)
 setnames(ukb_main_dataset, c("IID", "SEX", "ASSESSMENT_CENTER", "AGE", "MEASUREMENT_BATCH"))
 
 # Create interaction variables for age and sex
-ukb_main_dataset[, AGE := as.integer(AGE)]
-ukb_main_dataset[, SEX := as.integer(SEX)]
+ukb_main_dataset[, AGE := as.numeric(AGE)]
+ukb_main_dataset[, SEX := as.numeric(SEX)]
 ukb_main_dataset[, AGE2 := AGE^2]
 ukb_main_dataset[, AGE_SEX := AGE * SEX]
 ukb_main_dataset[, AGE2_SEX := AGE2 * SEX]
@@ -47,14 +46,14 @@ common_samples <- Reduce(intersect,
 ukb_main_dataset <- ukb_main_dataset[IID %in% common_samples, ]
 olink_data <- olink_data[IID %in% common_samples, ]
 
-# Remove columns that have NAs or have become constant after the subsetting
+# Remove covariates that have NAs or have become constant after the subsetting
 for (column in names(ukb_main_dataset)[-1]) {
   if (anyNA(ukb_main_dataset[[column]]) || var(ukb_main_dataset[[column]]) <= 0) {
     ukb_main_dataset[, (column) := NULL]
   }
 }
 
-# Remove columns that have become fully NA after the subsetting
+# Remove proteins that have become fully NA after the subsetting
 # Note that here we allow some NAs to remain because none of the individuals have data for all proteins
 for (column in names(olink_data)[-1]) {
   if (all(is.na(olink_data[[column]]))) {
@@ -63,19 +62,15 @@ for (column in names(olink_data)[-1]) {
 }
 
 # Create a file listing the pairs of proteins to analyze
-olink_annotations <- olink_annotations[chr_hg19 %in% 1:22, ]
-olink_annotations[, ukb_code := paste0("protein_", ukb_code)]
-olink_annotations <- olink_annotations[ukb_code %in% names(olink_data), ]
-unique_proteins <- unique(olink_annotations$ukb_code)
-protein_pairs <- t(combn(unique_proteins, 2))
+protein_pairs <- t(combn(names(olink_data)[-1], 2))
 
 # Put the samples in a format compatible with PLINK's --keep command
 plink_keep_samples <- as.data.frame(cbind(common_samples, common_samples))
 names(plink_keep_samples) <- c("#FID", "IID")
 
 # Save the formatted datasets
-fwrite(ukb_main_dataset, file = "phenotypes/covariates_nopc.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
-fwrite(olink_data, file = "phenotypes/proteins.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
-write.table(protein_pairs, file = "phenotypes/protein_pairs.tsv", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
-write.table(plink_keep_samples, file = "TEMP_high_quality_samples.txt", quote = FALSE, sep = "\t", row.names = FALSE)
+fwrite(ukb_main_dataset, file = "data_cleaned/covariates_nopc.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
+fwrite(olink_data, file = "data_cleaned/proteins.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
+write.table(protein_pairs, file = "pairs/all_protein_pairs.tsv", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+write.table(plink_keep_samples, file = "TEMP_high_quality_samples.txt", quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
 

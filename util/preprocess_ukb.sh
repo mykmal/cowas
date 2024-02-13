@@ -11,15 +11,14 @@
 
 module load R/4.3.0-openblas
 
-mkdir genotypes
-mkdir gwas
-mkdir phenotypes
+mkdir pairs
+mkdir data_cleaned
 
 Rscript --vanilla util/preprocess_ukb_helper1.R
 
 for CHROM in {1..22}
 do
-plink2 --pfile raw/ukb_chr${CHROM} \
+plink2 --pfile data_raw/ukb_chr${CHROM} \
        --threads 30 \
        --memory 120000 \
        --keep TEMP_high_quality_samples.txt \
@@ -36,24 +35,31 @@ plink2 --pfile TEMP_LOOP_1 \
 plink2 --pfile TEMP_LOOP_2 \
        --threads 30 \
        --memory 120000 \
-       --hwe 1e-6 midp \
-       --nonfounders \
+       --min-ac 50 \
        --make-pgen \
        --out TEMP_LOOP_3
-
-awk -v FS='\t' '$3 !~ /^rs/ {print $3}' TEMP_LOOP_3.pvar > TEMP_LOOP_no_rsid.txt
 
 plink2 --pfile TEMP_LOOP_3 \
        --threads 30 \
        --memory 120000 \
-       --exclude TEMP_LOOP_no_rsid.txt \
+       --hwe 1e-15 midp \
+       --nonfounders \
        --make-pgen \
        --out TEMP_LOOP_4
 
-awk -v FS='\t' '($4 == "A" && $5 == "T") || ($4 == "T" && $5 == "A") || ($4 == "C" && $5 == "G") || ($4 == "G" && $5 == "C") {print $3}' \
-          TEMP_LOOP_4.pvar > TEMP_LOOP_palindromic.txt
+awk -v FS='\t' '$3 !~ /^rs/ {print $3}' TEMP_LOOP_4.pvar > TEMP_LOOP_no_rsid.txt
 
 plink2 --pfile TEMP_LOOP_4 \
+       --threads 30 \
+       --memory 120000 \
+       --exclude TEMP_LOOP_no_rsid.txt \
+       --make-pgen \
+       --out TEMP_LOOP_5
+
+awk -v FS='\t' '($4 == "A" && $5 == "T") || ($4 == "T" && $5 == "A") || ($4 == "C" && $5 == "G") || ($4 == "G" && $5 == "C") {print $3}' \
+          TEMP_LOOP_5.pvar > TEMP_LOOP_palindromic.txt
+
+plink2 --pfile TEMP_LOOP_5 \
        --threads 30 \
        --memory 120000 \
        --exclude TEMP_LOOP_palindromic.txt \
@@ -63,39 +69,29 @@ plink2 --pfile TEMP_LOOP_4 \
 rm TEMP_LOOP*
 done
 
-cat TEMP_FINAL_CHR1.pvar TEMP_FINAL_CHR2.pvar TEMP_FINAL_CHR3.pvar TEMP_FINAL_CHR4.pvar TEMP_FINAL_CHR5.pvar \
-    TEMP_FINAL_CHR6.pvar TEMP_FINAL_CHR7.pvar TEMP_FINAL_CHR8.pvar TEMP_FINAL_CHR9.pvar TEMP_FINAL_CHR10.pvar \
-    TEMP_FINAL_CHR11.pvar TEMP_FINAL_CHR12.pvar TEMP_FINAL_CHR13.pvar TEMP_FINAL_CHR14.pvar TEMP_FINAL_CHR15.pvar \
-    TEMP_FINAL_CHR16.pvar TEMP_FINAL_CHR17.pvar TEMP_FINAL_CHR18.pvar TEMP_FINAL_CHR19.pvar TEMP_FINAL_CHR20.pvar \
-    TEMP_FINAL_CHR21.pvar TEMP_FINAL_CHR22.pvar > TEMP_all_ukb_variants.pvar
-
-Rscript --vanilla util/preprocess_ukb_helper2.R
-
-for CHROM in {1..22}
-do
-plink2 --pfile TEMP_FINAL_CHR${CHROM} \
-       --threads 30 \
-       --memory 120000 \
-       --extract TEMP_mutual_variants.txt \
-       --make-pgen \
-       --out genotypes/ukb_filtered_${CHROM}
-done
-
-rm TEMP*
-
-printf "ukb_filtered_1\nukb_filtered_2\nukb_filtered_3\nukb_filtered_4\nukb_filtered_5\n\
-ukb_filtered_6\nukb_filtered_7\nukb_filtered_8\nukb_filtered_9\nukb_filtered_10\n\
-ukb_filtered_11\nukb_filtered_12\nukb_filtered_13\nukb_filtered_14\nukb_filtered_15\n\
-ukb_filtered_16\nukb_filtered_17\nukb_filtered_18\nukb_filtered_19\nukb_filtered_20\n\
-ukb_filtered_21\nukb_filtered_22\n" > TEMP_plink_files.txt
+printf "TEMP_FINAL_CHR1\nTEMP_FINAL_CHR2\nTEMP_FINAL_CHR3\nTEMP_FINAL_CHR4\nTEMP_FINAL_CHR5\n\
+TEMP_FINAL_CHR6\nTEMP_FINAL_CHR7\nTEMP_FINAL_CHR8\nTEMP_FINAL_CHR9\nTEMP_FINAL_CHR10\n\
+TEMP_FINAL_CHR11\nTEMP_FINAL_CHR12\nTEMP_FINAL_CHR13\nTEMP_FINAL_CHR14\nTEMP_FINAL_CHR15\n\
+TEMP_FINAL_CHR16\nTEMP_FINAL_CHR17\nTEMP_FINAL_CHR18\nTEMP_FINAL_CHR19\nTEMP_FINAL_CHR20\n\
+TEMP_FINAL_CHR21\nTEMP_FINAL_CHR22\n" > TEMP_plink_files.txt
 
 plink2 --pmerge-list TEMP_plink_files.txt pfile \
        --threads 30 \
        --memory 120000 \
-       --pmerge-list-dir genotypes \
        --out TEMP_merged
 
+Rscript --vanilla util/preprocess_ukb_helper2.R
+
 plink2 --pfile TEMP_merged \
+       --threads 30 \
+       --memory 120000 \
+       --extract TEMP_mutual_variants.txt \
+       --make-pgen \
+       --out genotypes/ukb_filtered
+
+rm TEMP*
+
+plink2 --pfile genotypes/ukb_filtered \
        --threads 30 \
        --memory 120000 \
        --snps-only just-acgt \
@@ -162,6 +158,6 @@ plink2 --pfile TEMP_STEP4 \
 
 Rscript --vanilla util/preprocess_ukb_helper3.R
 
-rm phenotypes/covariates_nopc.tsv
+rm data_cleaned/covariates_nopc.tsv
 rm TEMP*
 
