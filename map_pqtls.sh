@@ -19,16 +19,16 @@ if ( [ ! -d pqtls ] ); then
 mkdir pqtls
 fi
 
-# Inverse-rank normalize the protein NPX levels
-Rscript --vanilla map_pqtls_helper.R ${PROTEIN}
-
 # Perform association testing
 plink2 --pfile data_cleaned/ukb_filtered \
+       --no-psam-pheno \
        --threads 30 \
 	   --memory 120000 \
-	   --pheno TEMP_${PROTEIN}_normalized.txt \
-	   --no-psam-pheno \
+	   --pheno data_cleaned/proteins.tsv \
+	   --pheno-name ${PROTEIN} \
+	   --pheno-quantile-normalize \
 	   --covar data_cleaned/covariates.tsv \
+	   --covar-variance-standardize \
        --glm omit-ref hide-covar cols=p \
 	   --pfilter 0.01 \
 	   --out TEMP_${PROTEIN}
