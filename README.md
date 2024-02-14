@@ -62,3 +62,12 @@ The `data_raw` folder can be deleted after the preprocessing script successfully
 
 This section describes how to perform a co-expression wide association study (COWAS), using data from the previous section as an example.
 
+## Variant screening
+
+For each protein, COWAS requires a list of genetic variants to be used as predictors in its expression imputation model. We considered two approaches for selecting variants, as well as their combination:
+
+1. **Variants located near the gene coding for the given protein.** For example, one may wish to include all variants within a 500 kb window of the gene boundaries. A protein annotation file listing, among other things, the start and end positions for all genes encoding the proteins included in UKB-PPP is available at <https://www.synapse.org/#!Synapse:syn52364558>.
+2. **Variants that are pQTLs for the given protein.** For example, one may wish to include all variants that pass a nominal significance threshold for association with the protein's expression level. We provide the script `map_pqtls.sh` for computing variant-protein associations. Modify the first line of this script to specify your protein of interest, and then run it from your main COWAS folder. This will perform a GWAS for the specified protein and save summary statistics to the file `pqtls/<PROTEIN_CODE>_sumstats.tsv`. The output is a tab-separated file with one line per variant and the following three columns: ID, A1, P. To save space, only variants with P < 0.01 are reported.
+
+Once you have determined which variants to use as predictors for each protein, save them to protein-specific files named `variants/<PROTEIN_CODE>_variants.txt` with one rsID per line.
+
