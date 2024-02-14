@@ -86,7 +86,7 @@ plink2 --pfile TEMP_merged \
        --threads 30 \
        --memory 120000 \
        --extract TEMP_mutual_variants.txt \
-       --make-pgen \
+       --make-pgen psam-cols=sex \
        --out data_cleaned/ukb_filtered
 
 rm TEMP*

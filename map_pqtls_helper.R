@@ -8,18 +8,20 @@ expression <- fread(file = "data_cleaned/proteins.tsv", header = TRUE, sep = "\t
 
 # Drop NAs and make sure the data is numeric
 expression <- na.omit(expression)
-expression[, (protein) := as.numeric(protein)]
+setnames(expression, c("id", "npx"))
+expression[, npx := as.numeric(npx)]
 
 # This offset corresponds to the Blom transform
-offset = 0.375
+offset <- 0.375
 
 # Get needed quantities
 n <- nrow(expression)
-ranks <- rank(expression[[protein]], ties.method = "average")
+ranks <- rank(expression$npx, ties.method = "average")
 
 # Perform an inverse-rank normal transformation
-expression[, (protein) := stats::qnorm((ranks - offset) / (n - 2 * offset + 1))]
+expression[, npx := stats::qnorm((ranks - offset) / (n - 2 * offset + 1))]
 
 # Save data
+setnames(expression, c("IID", protein))
 fwrite(expression, file = paste("TEMP", protein, "normalized.txt", sep = "_"), quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
 

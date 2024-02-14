@@ -13,6 +13,8 @@
 # This variable must match the column name for the protein's expression levels
 PROTEIN=protein_1
 
+module load R/4.3.0-openblas
+
 if ( [ ! -d pqtls ] ); then
 mkdir pqtls
 fi
