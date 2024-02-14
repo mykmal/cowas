@@ -30,6 +30,7 @@ plink2 --pfile data_cleaned/ukb_filtered \
 	   --covar data_cleaned/covariates.tsv \
 	   --covar-variance-standardize \
        --glm omit-ref hide-covar cols=p \
+	   --vif 100000 \
 	   --pfilter 0.01 \
 	   --out TEMP_${PROTEIN}
 
