@@ -69,5 +69,7 @@ For each protein, COWAS requires a list of genetic variants to be used as predic
 1. **Variants located near the gene coding for the given protein.** For example, one may wish to include all variants within a 500 kb window of the gene boundaries. A protein annotation file listing, among other things, the start and end positions for all genes encoding the proteins included in UKB-PPP is available at <https://www.synapse.org/#!Synapse:syn52364558>.
 2. **Variants that are pQTLs for the given protein.** For example, one may wish to include all variants that pass a nominal significance threshold for association with the protein's expression level. We provide the script `map_pqtls.sh` for computing variant-protein associations for all proteins in the UKB-PPP dataset. The resulting summary statistics are saved to protein-specific, tab-separated files named `pqtls/<PROTEIN_CODE>_sumstats.tsv` with one line per variant and the following three columns: #ID, A1, P. To save disk space, only variants with P < 0.01 are reported.
 
-Once you have determined which variants to use as predictors for each protein, save them to protein-specific files named `variants/<PROTEIN_CODE>_variants.txt` with one rsID per line.
+Once you have determined which variants to use as predictors for each protein, save them to protein-specific files named `variants/<PROTEIN_CODE>_features.txt` with one rsID per line.
+
+## Running COWAS
 

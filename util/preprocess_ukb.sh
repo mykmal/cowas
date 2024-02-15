@@ -91,6 +91,9 @@ plink2 --pfile TEMP_merged \
 
 rm TEMP*
 
+# Extract ALT alleles, in order to keep them consistent across COWAS runs
+awk -v FS="\t" -v OFS="\t" '!/^#/ {print $3,$5}' data_cleaned/ukb_filtered.pvar > data_cleaned/ukb_alt_alleles.tsv
+
 plink2 --pfile data_cleaned/ukb_filtered \
        --threads 30 \
        --memory 120000 \
