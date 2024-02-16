@@ -238,6 +238,13 @@ gwas[, c("REF", "ALT", "flip", "effect_allele_flipped", "other_allele_flipped") 
 keep <- c(1, which(names(genotypes) %in% gwas$variant_id))
 genotypes <- genotypes[, ..keep]
 
+# Make sure at least two variants remain for each protein
+variants_a <- variants_a[which(variants_a %in% names(genotypes))]
+variants_b <- variants_b[which(variants_b %in% names(genotypes))]
+if (length(variants_a) < 2 || length(variants_b) < 2) {
+  stop("Fewer than two variants available for prediction. Skipping the pair ", opt$protein_a, " - ", opt$protein_b, ".")
+}
+
 # Define prediction models ------------------------------------------------------------------------
 
 TrainStepwise <- function(z_a, z_b, z_both, x) {
@@ -251,9 +258,9 @@ TrainStepwise <- function(z_a, z_b, z_both, x) {
   
   # lm() is easier to use with outcome and predictor variables in one data table
   data_a <- cbind(x[, 1], z_a)
-  setnames(data_a, "x[, 1]", "p_a")
+  setnames(data_a, 1, "p_a")
   data_b <- cbind(x[, 2], z_b)
-  setnames(data_b, "x[, 2]", "p_b")
+  setnames(data_b, 1, "p_b")
   
   # Free up memory
   rm(shuffled, z_a, z_b, x)
@@ -262,7 +269,7 @@ TrainStepwise <- function(z_a, z_b, z_both, x) {
   folds <- cut(seq(1, n_expression), breaks = opt$cv_folds, labels = FALSE)
   
   # Data table for storing imputed expression and co-expression in left-out folds
-  imputed <- setDT(as.data.frame(matrix(data = NA, nrow = n_expression, ncol = 3))
+  imputed <- setDT(as.data.frame(matrix(data = NA, nrow = n_expression, ncol = 3)))
   setnames(imputed, c("a", "b", "co"))
   
   # The full model formulas
@@ -325,9 +332,9 @@ TrainStepwise <- function(z_a, z_b, z_both, x) {
   
   # Save model weights
   # The intercept is ignored because it will be numerically zero
-  model_a_weights <- coef(step_a)[-1, ]
-  model_b_weights <- coef(step_b)[-1, ]
-  model_co_weights <- coef(step_co)[-1, ]
+  model_a_weights <- coef(step_a)[-1]
+  model_b_weights <- coef(step_b)[-1]
+  model_co_weights <- coef(step_co)[-1]
   
   # Compute R^2 on left-out folds
   # R^2 = 1 - MSE / Var(y) = 1 - MSE
@@ -355,7 +362,7 @@ TrainGlmnet <- function(z_a, z_b, z_both, x, alpha) {
                        standardize = FALSE, intercept = TRUE)
   
   # Fit an elastic net model for protein_b
-  model_b <- cv.glmnet(x = x_b, y = x[, 2],
+  model_b <- cv.glmnet(x = z_b, y = x[, 2],
                        family = "gaussian", type.measure = "mse",
                        alpha = alpha, nfolds = opt$cv_folds,
                        standardize = FALSE, intercept = TRUE)
@@ -401,8 +408,6 @@ genotypes <- data_merged[, ..rsids]
 rm(data_merged)
 
 # Extract protein-specific variants from the joint genotype matrix
-variants_a <- variants_a(which(variants_a %in% names(genotypes)))
-variants_b <- variants_b(which(variants_b %in% names(genotypes)))
 genotypes_a <- genotypes[, ..variants_a]
 genotypes_b <- genotypes[, ..variants_b]
 
@@ -433,27 +438,34 @@ n_gwas <- median(gwas$n_cases) + median(gwas$n_controls)
 # Compute the correlation between variants and disease
 genotype_disease_correlation <- gwas$z_score / sqrt(n_gwas - 2 + gwas$z_score^2)
 
+# Convert from data table to matrix so that we can perform matrix operations
+genotypes <- as.matrix(genotypes)
+genotype_disease_correlation <- as.matrix(genotype_disease_correlation)
+
+# Compute the LD matrix
+ld_matrix <- t(genotypes) %*% genotypes / n_expression
+
 # Formulas for computing the stage 2 effect size and its variance
 stage2 <- function(qtl_weights) {
-  # These formulas are derived from ordinary least squares (OLS) regression
-  ld_matrix <- t(genotypes) %*% genotypes / n_expression
+  # This formula is derived from ordinary least squares (OLS) regression
   product <- t(qtl_weights) %*% ld_matrix %*% qtl_weights
   
   # Check if the product matrix is invertible
   if (abs(det(product)) < 1e-20) {
-    return(list(theta = 0,
-                variance_theta = 0,
-				rss = 0))
+    return(list(theta = NA,
+                variance_theta = NA,
+				rss = NA))
   }
   
   product_inverted <- solve(product)
   
   # See our paper for the derivation of the following three expressions -- it's too long to explain here
   theta <- product_inverted %*% t(qtl_weights) %*% genotype_disease_correlation
-   
-  rss <- n_gwas * (1 - 2 * t(genotype_disease_correlation) %*% qtl_weights %*% theta + t(theta) %*% product %*% theta) - 1
   
-  variance_theta <- product_inverted %*% rss / ((n_gwas - ncol(qtl_weights) - 1) * n_gwas)
+  rss <- n_gwas * (1 - 2 * t(genotype_disease_correlation) %*% qtl_weights %*% theta + t(theta) %*% product %*% theta) - 1
+  rss <- as.numeric(rss)
+  
+  variance_theta <- product_inverted * rss / ((n_gwas - ncol(qtl_weights) - 1) * n_gwas)
   
   return(list(theta = theta,
               variance_theta = variance_theta,
@@ -473,43 +485,43 @@ stage2_co <- stage2(as.matrix(trained_output$weights_co))
 stage2_abc <- stage2(cbind(weights_padded_a, weights_padded_b, trained_output$weights_co))
 
 # The "direct" variables refer to stage 2 models with only one term
-if (stage2_a$variance_theta != 0) {
-  wald_direct_a <- stage2_a$theta^2 / stage2_a$variance_theta
+if (!is.na(stage2_a$variance_theta)) {
+  wald_direct_a <- as.numeric(stage2_a$theta)^2 / as.numeric(stage2_a$variance_theta)
   pvalue_direct_a <- pchisq(wald_direct_a, 1, lower.tail = FALSE)
 } else {
   pvalue_direct_a <- NA
 }
 
-if (stage2_b$variance_theta != 0) {
-  wald_direct_b <- stage2_b$theta^2 / stage2_b$variance_theta
+if (!is.na(stage2_b$variance_theta)) {
+  wald_direct_b <- as.numeric(stage2_b$theta)^2 / as.numeric(stage2_b$variance_theta)
   pvalue_direct_b <- pchisq(wald_direct_b, 1, lower.tail = FALSE)
 } else {
   pvalue_direct_b <- NA
 }
 
-if (stage2_co$variance_theta != 0) {
-  wald_direct_co <- stage2_co$theta^2 / stage2_co$variance_theta
+if (!is.na(stage2_co$variance_theta)) {
+  wald_direct_co <- as.numeric(stage2_co$theta)^2 / as.numeric(stage2_co$variance_theta)
   pvalue_direct_co <- pchisq(wald_direct_co, 1, lower.tail = FALSE)
 } else {
   pvalue_direct_co <- NA
 }
 
 # The "full" variables refer to the stage 2 model with three terms
-if (all(stage2_abc$variance_theta != 0)) {
-  wald_full_a <- stage2_abc$theta[1]^2 / stage2_abc$variance_theta[1]
+if (!anyNA(stage2_abc$variance_theta)) {
+  wald_full_a <- stage2_abc$theta[1,1]^2 / stage2_abc$variance_theta[1,1]
   pvalue_full_a <- pchisq(wald_full_a, 1, lower.tail = FALSE)
   
-  wald_full_b <- stage2_abc$theta[2]^2 / stage2_abc$variance_theta[2]
+  wald_full_b <- stage2_abc$theta[2,1]^2 / stage2_abc$variance_theta[2,2]
   pvalue_full_b <- pchisq(wald_full_b, 1, lower.tail = FALSE)
   
-  wald_full_co <- stage2_abc$theta[3]^2 / stage2_abc$variance_theta[3]
+  wald_full_co <- stage2_abc$theta[3,1]^2 / stage2_abc$variance_theta[3,3]
   pvalue_full_co <- pchisq(wald_full_co, 1, lower.tail = FALSE)
 } else {
   pvalue_full_a <- pvalue_full_b <- pvalue_full_co <- NA
 }
 
 # Perform an F-test to determine if the stage 2 model with three terms is significantly better than a null model
-f_statistic <- ((n_gwas - 4) * (n_gwas - 1 - stage2_abc$rss)) / (3 * stage2_abc$rss)
+f_statistic <- ((n_gwas - 4) * (n_gwas - 1 - as.numeric(stage2_abc$rss))) / (3 * as.numeric(stage2_abc$rss))
 f_pvalue <- pf(f_statistic, 3, n_gwas - 4, lower.tail = FALSE)
 
 # Append results to the output file
@@ -525,5 +537,5 @@ output <- c(opt$protein_a, opt$protein_b, n_expression, n_gwas,
             stage2_abc$theta[3], stage2_abc$variance_theta[3], pvalue_full_co,
 			f_statistic, f_pvalue)
 
-write.table(output, file = opt$out, quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE, append = TRUE)
+write.table(t(output), file = opt$out, quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE, append = TRUE)
 
