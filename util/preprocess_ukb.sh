@@ -14,75 +14,98 @@ module load R/4.3.0-openblas
 mkdir pairs
 mkdir data_cleaned
 
+printf "ukb_chr1\nukb_chr2\nukb_chr3\nukb_chr4\nukb_chr5\n\
+ukb_chr6\nukb_chr7\nukb_chr8\nukb_chr9\nukb_chr10\n\
+ukb_chr11\nukb_chr12\nukb_chr13\nukb_chr14\nukb_chr15\n\
+ukb_chr16\nukb_chr17\nukb_chr18\nukb_chr19\nukb_chr20\n\
+ukb_chr21\nukb_chr22\n" > TEMP_plink_files.txt
+
+plink2 --pmerge-list TEMP_plink_files.txt pfile \
+       --threads 30 \
+	   --memory 120000 \
+	   --pmerge-list-dir data_raw \
+	   --out TEMP_merged
+
+plink2 --pfile TEMP_merged \
+       --threads 30 \
+       --memory 120000 \
+       --mind 0.01 \
+       --make-pgen \
+       --out TEMP_1
+
 Rscript --vanilla util/preprocess_ukb_helper1.R
 
-for CHROM in {1..22}
-do
-plink2 --pfile data_raw/ukb_chr${CHROM} \
+plink2 --pfile TEMP_1 \
        --threads 30 \
        --memory 120000 \
        --keep TEMP_high_quality_samples.txt \
        --make-pgen \
-       --out TEMP_LOOP_1
+       --out TEMP_2
 
-plink2 --pfile TEMP_LOOP_1 \
+plink2 --pfile TEMP_2 \
        --threads 30 \
        --memory 120000 \
-       --geno 0.01 \
+       --geno 0.1 \
        --make-pgen \
-       --out TEMP_LOOP_2
+       --out TEMP_3
 
-plink2 --pfile TEMP_LOOP_2 \
+plink2 --pfile TEMP_3 \
        --threads 30 \
        --memory 120000 \
-       --min-ac 50 \
+       --min-ac 100 \
        --make-pgen \
-       --out TEMP_LOOP_3
+       --out TEMP_4
 
-plink2 --pfile TEMP_LOOP_3 \
+plink2 --pfile TEMP_4 \
+       --threads 30 \
+       --memory 120000 \
+       --min-af 0.01 \
+       --make-pgen \
+       --out TEMP_5
+
+plink2 --pfile TEMP_5 \
        --threads 30 \
        --memory 120000 \
        --hwe 1e-15 midp \
        --nonfounders \
        --make-pgen \
-       --out TEMP_LOOP_4
+       --out TEMP_6
 
-awk -v FS='\t' '$3 !~ /^rs/ {print $3}' TEMP_LOOP_4.pvar > TEMP_LOOP_no_rsid.txt
+awk -v FS='\t' '$3 !~ /^rs/ {print $3}' TEMP_6.pvar > TEMP_no_rsid.txt
 
-plink2 --pfile TEMP_LOOP_4 \
+plink2 --pfile TEMP_6 \
        --threads 30 \
        --memory 120000 \
-       --exclude TEMP_LOOP_no_rsid.txt \
+       --exclude TEMP_no_rsid.txt \
        --make-pgen \
-       --out TEMP_LOOP_5
+       --out TEMP_7
 
 awk -v FS='\t' '($4 == "A" && $5 == "T") || ($4 == "T" && $5 == "A") || ($4 == "C" && $5 == "G") || ($4 == "G" && $5 == "C") {print $3}' \
-          TEMP_LOOP_5.pvar > TEMP_LOOP_palindromic.txt
+          TEMP_7.pvar > TEMP_palindromic.txt
 
-plink2 --pfile TEMP_LOOP_5 \
+plink2 --pfile TEMP_7 \
        --threads 30 \
        --memory 120000 \
-       --exclude TEMP_LOOP_palindromic.txt \
+       --exclude TEMP_palindromic.txt \
        --make-pgen \
-       --out TEMP_FINAL_CHR${CHROM}
+       --out TEMP_8
 
-rm TEMP_LOOP*
-done
-
-printf "TEMP_FINAL_CHR1\nTEMP_FINAL_CHR2\nTEMP_FINAL_CHR3\nTEMP_FINAL_CHR4\nTEMP_FINAL_CHR5\n\
-TEMP_FINAL_CHR6\nTEMP_FINAL_CHR7\nTEMP_FINAL_CHR8\nTEMP_FINAL_CHR9\nTEMP_FINAL_CHR10\n\
-TEMP_FINAL_CHR11\nTEMP_FINAL_CHR12\nTEMP_FINAL_CHR13\nTEMP_FINAL_CHR14\nTEMP_FINAL_CHR15\n\
-TEMP_FINAL_CHR16\nTEMP_FINAL_CHR17\nTEMP_FINAL_CHR18\nTEMP_FINAL_CHR19\nTEMP_FINAL_CHR20\n\
-TEMP_FINAL_CHR21\nTEMP_FINAL_CHR22\n" > TEMP_plink_files.txt
-
-plink2 --pmerge-list TEMP_plink_files.txt pfile \
+plink2 --pfile TEMP_8 \
        --threads 30 \
        --memory 120000 \
-       --out TEMP_merged
+       --indep-pairwise 1000 100 0.8 \
+       --out TEMP_indep_variants
+
+plink2 --pfile TEMP_8 \
+       --threads 30 \
+       --memory 120000 \
+       --extract TEMP_indep_variants.prune.in \
+       --make-pgen \
+       --out TEMP_FINAL
 
 Rscript --vanilla util/preprocess_ukb_helper2.R
 
-plink2 --pfile TEMP_merged \
+plink2 --pfile TEMP_FINAL \
        --threads 30 \
        --memory 120000 \
        --extract TEMP_mutual_variants.txt \
@@ -93,13 +116,6 @@ rm TEMP*
 
 # Extract ALT alleles, in order to keep them consistent across COWAS runs
 awk -v FS="\t" -v OFS="\t" '!/^#/ {print $3,$5}' data_cleaned/ukb_filtered.pvar > data_cleaned/ukb_alt_alleles.tsv
-
-plink2 --pfile data_cleaned/ukb_filtered \
-       --threads 30 \
-       --memory 120000 \
-       --snps-only just-acgt \
-       --make-pgen \
-       --out TEMP_STEP1
 
 # Long-range LD regions in GRCh37 are from table S12 of https://www.biorxiv.org/content/10.1101/166298v1
 printf "1 48000000 52000000\n\
@@ -126,34 +142,27 @@ printf "1 48000000 52000000\n\
 12 109500000 112000000\n\
 20 32000000 34500000\n" > TEMP_long_range_ld.txt
 
-plink2 --pfile TEMP_STEP1 \
+plink2 --pfile data_cleaned/ukb_filtered \
        --threads 30 \
        --memory 120000 \
        --exclude bed1 TEMP_long_range_ld.txt \
        --make-pgen \
-       --out TEMP_STEP2
+       --out TEMP_PCA_1
 
-plink2 --pfile TEMP_STEP2 \
-       --threads 30 \
-       --memory 120000 \
-       --min-af 0.01 \
-       --make-pgen \
-       --out TEMP_STEP3
-
-plink2 --pfile TEMP_STEP3 \
+plink2 --pfile TEMP_PCA_1 \
        --threads 30 \
        --memory 120000 \
        --indep-pairwise 1000 100 0.1 \
-       --out TEMP_indep_variants
+       --out TEMP_PCA_indep_variants
 
-plink2 --pfile TEMP_STEP3 \
+plink2 --pfile TEMP_PCA_1 \
        --threads 30 \
        --memory 120000 \
-       --extract TEMP_indep_variants.prune.in \
+       --extract TEMP_PCA_indep_variants.prune.in \
        --make-pgen \
-       --out TEMP_STEP4
+       --out TEMP_PCA_2
 
-plink2 --pfile TEMP_STEP4 \
+plink2 --pfile TEMP_PCA_2 \
        --threads 30 \
        --memory 120000 \
        --pca 20 \

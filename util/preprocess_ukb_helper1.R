@@ -3,7 +3,7 @@ library(data.table)
 # Load data
 ukb_main_dataset <- fread(file = "data_raw/ukb_main_dataset.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE)
 olink_data <- fread(file = "data_raw/olink_data.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE)
-genotyped_samples <- fread(file = "data_raw/ukb_chr1.psam", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE, select = 2)
+genotyped_samples <- fread(file = "TEMP_1.psam", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE, select = 2)
 
 # Subset to high-quality, unrelated, White British samples
 ukb_main_dataset <- ukb_main_dataset[f.22020.0.0 == 1 & f.22006.0.0 == 1, ]
@@ -48,15 +48,15 @@ olink_data <- olink_data[IID %in% common_samples, ]
 
 # Remove covariates that have NAs or have become constant after the subsetting
 for (column in names(ukb_main_dataset)[-1]) {
-  if (anyNA(ukb_main_dataset[[column]]) || var(ukb_main_dataset[[column]]) <= 0) {
+  if (anyNA(ukb_main_dataset[[column]]) || var(ukb_main_dataset[[column]], na.rm = TRUE) <= 0) {
     ukb_main_dataset[, (column) := NULL]
   }
 }
 
-# Remove proteins that have become fully NA after the subsetting
+# Remove proteins that have become fully NA or constant after the subsetting
 # Note that here we allow some NAs to remain because none of the individuals have data for all proteins
 for (column in names(olink_data)[-1]) {
-  if (all(is.na(olink_data[[column]]))) {
+  if (all(is.na(olink_data[[column]])) || var(olink_data[[column]], na.rm = TRUE) <= 0) {
     olink_data[, (column) := NULL]
   }
 }
