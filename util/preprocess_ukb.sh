@@ -22,9 +22,9 @@ ukb_chr21\nukb_chr22\n" > TEMP_plink_files.txt
 
 plink2 --pmerge-list TEMP_plink_files.txt pfile \
        --threads 30 \
-	   --memory 120000 \
-	   --pmerge-list-dir data_raw \
-	   --out TEMP_merged
+       --memory 120000 \
+       --pmerge-list-dir data_raw \
+       --out TEMP_merged
 
 plink2 --pfile TEMP_merged \
        --threads 30 \

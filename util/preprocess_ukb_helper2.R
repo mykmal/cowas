@@ -8,7 +8,7 @@ gwas <- fread(file = "data_raw/GCST90027158_buildGRCh38.tsv", header = TRUE, na.
 
 # The Bellenguez et al. GWAS has some rows with identical rsIDs, positions, effect alleles, and alternate alleles but different p-values and allele frequencies
 # This seems to be a mistake in the data, so we remove all such rows
-duplicated_variants <- duplicated(gwas$variant_id)
+duplicated_variants <- gwas$variant_id[duplicated(gwas$variant_id)]
 message("\nNOTE: ", nrow(gwas[variant_id %in% duplicated_variants, ]), " duplicated rows removed from the Bellenguez et al. GWAS\n")
 gwas <- gwas[!variant_id %in% duplicated_variants, ]
 
