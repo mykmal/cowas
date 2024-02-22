@@ -65,12 +65,15 @@ This section describes how to perform a co-expression wide association study (CO
 
 ## Variant screening
 
-For each protein, COWAS requires a list of genetic variants to be used as predictors in its expression imputation model. We considered three approaches for selecting variants, as well as their combination:
+For each protein, COWAS requires a list of genetic variants to be used as predictors in its expression imputation model. We considered three approaches for selecting variants:
 
-1. **Variants located near the gene coding for the given protein.** For example, one may wish to include all variants within a 500 kb window of the gene boundaries. A protein annotation file listing, among other things, the start and end positions for all genes encoding the proteins included in UKB-PPP is available at <https://www.synapse.org/#!Synapse:syn52364558>. (Note that the positions in this file are on the GRCh38 build, while the UKB genotype data is on the GRCh37 build.)
-2. **Variants that are pQTLs for the given protein.** For example, one may wish to include all variants that pass a nominal significance threshold for association with the protein's expression level. We provide the script `map_pqtls.sh` for computing variant-protein associations for all proteins in the UKB-PPP dataset. The resulting summary statistics are saved to protein-specific, tab-separated files named `pqtls/<PROTEIN_CODE>_sumstats.tsv` with one line per variant and the following three columns: #ID, A1, P. To save disk space, only variants with P < 0.01 are reported.
+1. **Variants selected by sure independence screening (SIS).** SIS is a variable selection method based on correlation learning. First, componentwise regression is performed to compute the marginal correlation between each normalized feature (genetic variant) and the response (protein expression). Then the features are ranked by their correlations, and the top $d$ (e.g. top 50) are selected as predictors.
+2. **Variants that are pQTLs.** Instead of ranking features by their correlation with the response, they can be ranked by their marginal association *P*-value. That is, the top $d$ most significant pQTLs for the given protein can be used as predictors. Alternatively, one may wish to include all variants that pass a nominal significance threshold.
+3. **Variants located near the gene coding for the given protein.** Since most of the genetic heritability of expression is explained by *cis*-QTLs, the two previous approaches can be restricted to variants that act locally on the gene coding for the given protein. For example, one may wish to include variants within a 1 Mb window of the gene boundaries. A protein annotation file listing, among other things, the start and end positions for all genes encoding the proteins included in UKB-PPP is available at <https://www.synapse.org/#!Synapse:syn52364558>. (Note that the positions in this file are on the GRCh38 build, while the UKB genotype data is on the GRCh37 build.)
 
-Once you have determined which variants to use as predictors for each protein, save them to protein-specific files named `variants/<PROTEIN_CODE>_features.txt` with one rsID per line.
+We provide the script `map_pqtls.sh` for computing variant-protein associations for all proteins in the UKB-PPP dataset. The resulting summary statistics are saved to protein-specific, tab-separated files named `pqtls/<PROTEIN_CODE>_sumstats.tsv` with one line per variant and the following six columns: #CHROM, POS, ID, A1, BETA, P. These summary statistics can then be filtered to select predictors for the expression imputation models according to either the strength of their correlation (BETA) or the significance of their association (P).
+
+Once you have determined which variants to use as predictors for each protein, save them to protein-specific files named `variants/<PROTEIN_CODE>_predictors.txt` with one rsID per line.
 
 ## Running COWAS
 

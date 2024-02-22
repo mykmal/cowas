@@ -15,21 +15,24 @@ mkdir pqtls
 
 # Perform association testing
 plink2 --pfile data_cleaned/ukb_filtered \
-	   --no-psam-pheno \
+       --no-psam-pheno \
 	   --threads 128 \
-	   --memory 418000 \
+	   --memory 420000 \
 	   --pheno data_cleaned/proteins.tsv \
 	   --pheno-quantile-normalize \
 	   --covar data_cleaned/covariates.tsv \
 	   --covar-variance-standardize \
-	   --glm omit-ref hide-covar cols=p \
+	   --glm omit-ref hide-covar cols=chrom,pos,beta,p \
 	   --vif 100000 \
-	   --pfilter 0.01 \
 	   --out TEMP
 
 # Rename and move the results files
 for NUMBER in {1..2923}; do
-mv TEMP.protein_${NUMBER}.glm.linear pqtls/protein_${NUMBER}_sumstats.tsv
+	if ( [ -f TEMP.protein_${NUMBER}.glm.linear ] ); then
+		mv TEMP.protein_${NUMBER}.glm.linear pqtls/protein_${NUMBER}_sumstats.tsv
+	else
+		printf "WARNING: unable to perform GWAS for protein ${NUMBER}.\n"
+	fi
 done
 
 rm TEMP*
