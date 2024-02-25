@@ -13,21 +13,6 @@ ukb_main_dataset[, c("f.54.1.0", "f.54.2.0", "f.54.3.0", "f.21003.1.0", "f.21003
 ukb_main_dataset <- na.omit(ukb_main_dataset)
 setnames(ukb_main_dataset, c("IID", "SEX", "ASSESSMENT_CENTER", "AGE", "MEASUREMENT_BATCH"))
 
-# Create interaction variables for age and sex
-ukb_main_dataset[, AGE := as.numeric(AGE)]
-ukb_main_dataset[, SEX := as.numeric(SEX)]
-ukb_main_dataset[, AGE2 := AGE^2]
-ukb_main_dataset[, AGE_SEX := AGE * SEX]
-ukb_main_dataset[, AGE2_SEX := AGE2 * SEX]
-
-# Create dummy variables for ASSESSMENT_CENTER and MEASUREMENT_BATCH
-center_ids <- sort(as.integer(unique(ukb_main_dataset$ASSESSMENT_CENTER)))[-1]
-ukb_main_dataset[, paste0("ASSESSMENT_CENTER_", center_ids) := lapply(center_ids, function(x) ifelse(ASSESSMENT_CENTER == x, 1, 0))]
-ukb_main_dataset[, AXIOM_ARRAY := ifelse(MEASUREMENT_BATCH > 0, 1, 0)]
-ukb_main_dataset[, c("ASSESSMENT_CENTER", "MEASUREMENT_BATCH") := NULL]
-sorted_ukb_columns <- c("IID", "AGE", "AGE2", "SEX", "AGE_SEX", "AGE2_SEX", paste0("ASSESSMENT_CENTER_", center_ids), "AXIOM_ARRAY")
-ukb_main_dataset <- ukb_main_dataset[, ..sorted_ukb_columns]
-
 # Reformat the proteomics data
 olink_data <- olink_data[ins_index == 0, ]
 olink_data[, ins_index := NULL]
@@ -45,6 +30,21 @@ common_samples <- Reduce(intersect,
                               genotyped_samples$IID))
 ukb_main_dataset <- ukb_main_dataset[IID %in% common_samples, ]
 olink_data <- olink_data[IID %in% common_samples, ]
+
+# Create interaction variables for age and sex
+ukb_main_dataset[, AGE := as.numeric(AGE)]
+ukb_main_dataset[, SEX := as.numeric(SEX)]
+ukb_main_dataset[, AGE2 := AGE^2]
+ukb_main_dataset[, AGE_SEX := AGE * SEX]
+ukb_main_dataset[, AGE2_SEX := AGE2 * SEX]
+
+# Create dummy variables for ASSESSMENT_CENTER and MEASUREMENT_BATCH
+center_ids <- sort(as.integer(unique(ukb_main_dataset$ASSESSMENT_CENTER)))[-1]
+ukb_main_dataset[, paste0("ASSESSMENT_CENTER_", center_ids) := lapply(center_ids, function(x) ifelse(ASSESSMENT_CENTER == x, 1, 0))]
+ukb_main_dataset[, AXIOM_ARRAY := ifelse(MEASUREMENT_BATCH > 0, 1, 0)]
+ukb_main_dataset[, c("ASSESSMENT_CENTER", "MEASUREMENT_BATCH") := NULL]
+sorted_ukb_columns <- c("IID", "AGE", "AGE2", "SEX", "AGE_SEX", "AGE2_SEX", paste0("ASSESSMENT_CENTER_", center_ids), "AXIOM_ARRAY")
+ukb_main_dataset <- ukb_main_dataset[, ..sorted_ukb_columns]
 
 # Remove covariates that have NAs or have become constant after the subsetting
 for (column in names(ukb_main_dataset)[-1]) {
