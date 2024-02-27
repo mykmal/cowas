@@ -19,10 +19,11 @@ plink2 --pfile data_cleaned/ukb_filtered \
 	   --threads 128 \
 	   --memory 420000 \
 	   --pheno data_cleaned/proteins.tsv \
+	   --not-pheno protein_1173 \
 	   --pheno-quantile-normalize \
 	   --covar data_cleaned/covariates.tsv \
 	   --covar-variance-standardize \
-	   --glm omit-ref hide-covar cols=chrom,pos,beta,p \
+	   --glm omit-ref hide-covar skip-invalid-pheno cols=chrom,pos,beta,p \
 	   --vif 100000 \
 	   --out TEMP
 
@@ -30,10 +31,26 @@ plink2 --pfile data_cleaned/ukb_filtered \
 for NUMBER in {1..2923}; do
 	if ( [ -f TEMP.protein_${NUMBER}.glm.linear ] ); then
 		mv TEMP.protein_${NUMBER}.glm.linear pqtls/protein_${NUMBER}_sumstats.tsv
-	else
-		printf "WARNING: unable to perform GWAS for protein ${NUMBER}.\n"
 	fi
 done
+
+# protein_1173 must be treated separately because otherwise it causes PLINK to crash
+# due to some covariates being constant after removing NA rows
+plink2 --pfile data_cleaned/ukb_filtered \
+       --no-psam-pheno \
+	   --threads 128 \
+	   --memory 420000 \
+	   --pheno data_cleaned/proteins.tsv \
+	   --pheno-name protein_1173 \
+	   --pheno-quantile-normalize \
+	   --covar data_cleaned/covariates.tsv \
+	   --not-covar ASSESSMENT_CENTER_11001 ASSESSMENT_CENTER_11002 ASSESSMENT_CENTER_11005 ASSESSMENT_CENTER_11022 ASSESSMENT_CENTER_11023 \
+	   --covar-variance-standardize \
+	   --glm omit-ref hide-covar cols=chrom,pos,beta,p \
+	   --vif 100000 \
+	   --out TEMP
+
+mv TEMP.protein_1173.glm.linear pqtls/protein_1173_sumstats.tsv
 
 rm TEMP*
 
