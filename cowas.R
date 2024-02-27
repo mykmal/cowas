@@ -147,12 +147,6 @@ if (is.na(opt$covariates)) {
   covariates <- fread(file = opt$covariates, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE)
   covariates <- na.omit(covariates)
   
-  # Center and scale each covariate
-  for (covariate in names(covariates)[-1]) {
-    covariate_vector <- covariates[[covariate]]
-    covariates[, (covariate) := scale(covariate_vector)]
-  }
-  
   individuals <- Reduce(intersect,
                         list(genotypes$IID,
                              expression$IID,
@@ -160,6 +154,16 @@ if (is.na(opt$covariates)) {
   genotypes <- genotypes[IID %in% individuals, ]
   expression <- expression[IID %in% individuals, ]
   covariates <- covariates[IID %in% individuals, ]
+  
+  # Center and scale each covariate
+  for (column in names(covariates)[-1]) {
+	set(x = covariates, j = column, value = scale(covariates[[column]]))
+	
+	# Remove the covariate if it has NAs or is constant for this subset of individuals
+	if (anyNA(covariates[[column]]) || var(covariates[[column]]) <= 0) {
+      covariates[, (column) := NULL]
+    }
+  }
 }
 
 # Save the expression reference panel sample size
@@ -167,7 +171,6 @@ n_expression <- nrow(expression)
 
 # Process each of the two proteins
 for (protein in c(opt$protein_a, opt$protein_b)) {
-  expression_vector <- expression[[protein]]
   
   # Perform quantile normalization if requested
   if (opt$rank_normalize == TRUE) {
@@ -175,17 +178,14 @@ for (protein in c(opt$protein_a, opt$protein_b)) {
 	offset <- 0.375
 	
 	# Compute the rank of each observation
-	ranks <- rank(expression_vector, ties.method = "average")
+	ranks <- rank(expression[[protein]], ties.method = "average")
 	
 	# Perform the transformation
 	expression[, (protein) := stats::qnorm((ranks - offset) / (n_expression - 2 * offset + 1))]
   } else {
     # Otherwise, simply center and scale
-	expression[, (protein) := scale(expression_vector)]
+	set(x = expression, j = protein, value = scale(expression[[protein]]))
   }
-  
-  # Free up memory
-  rm(expression_vector)
   
   # If covariates were provided, regress them out
   if (!is.na(opt$covariates)) {
@@ -215,13 +215,12 @@ genotypes <- genotypes[, ..keep]
 
 # Fill in missing calls with the mode for each variant
 # This is a reasonable imputation method when the missingness rate is very low
-for (variant in names(genotypes)[-1]) {
-  mode <- names(which.max(table(genotypes[[variant]])))
-  set(x = genotypes, i = which(is.na(genotypes[[variant]])), j = variant, value = mode)
-}
-
-# Normalize the genotype data for each variant, and then remove the SNP if it's monomorphic
 for (rsid in names(genotypes)[-1]) {
+  
+  mode <- names(which.max(table(genotypes[[rsid]])))
+  set(x = genotypes, i = which(is.na(genotypes[[rsid]])), j = rsid, value = mode)
+  
+  # Standardize the genotype data for this variant, and then remove it if it's monomorphic
   set(x = genotypes, j = rsid, value = scale(genotypes[[rsid]]))
   if (anyNA(genotypes[[rsid]]) || var(genotypes[[rsid]]) <= 0) {
     genotypes[, (rsid) := NULL]
