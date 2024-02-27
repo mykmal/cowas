@@ -17,18 +17,17 @@ PAIRS=pairs/all_protein_pairs.tsv
 OUT_FILE=all_proteins.tsv
 
 # Directory for storing the COWAS output file
-OUT_DIR=output_stepwise
+OUT_DIR=output
 
 # The type of model to fit
-# Valid options are stepwise, ridge, and elastic_net
+# Valid options are stepwise, ridge, lasso, and elastic_net
 MODEL=stepwise
 
-# R^2 threshold for expression and co-expression prediction models
-R2_THRESHOLD=0.001
+# Number of cores to use for parallelization
+CORES=32
 
-# Number of cross-validation folds to use for training expression imputation models
-# and assessing their predictive performance
-CV_FOLDS=10
+# Minimum R^2 threshold for expression and co-expression prediction models
+R2_THRESHOLD=0.001
 
 
 printf "Runtime parameters:\n"
@@ -36,17 +35,13 @@ printf "PAIRS = ${PAIRS}\n"
 printf "OUT_FILE = ${OUT_FILE}\n"
 printf "OUT_DIR = ${OUT_DIR}\n"
 printf "MODEL = ${MODEL}\n"
-printf "R2_THRESHOLD = ${R2_THRESHOLD}\n"
-printf "CV_FOLDS = ${CV_FOLDS}\n\n"
+printf "CORES = ${CORES}\n"
+printf "R2_THRESHOLD = ${R2_THRESHOLD}\n\n"
 
 module load R/4.3.0-openblas
 
 if ( [ ! -d ${OUT_DIR} ] ); then
 mkdir ${OUT_DIR}
-fi
-
-if [ ! -d ${OUT_DIR}/temp ]; then
-mkdir ${OUT_DIR}/temp
 fi
 
 if ( [ ! -f ${OUT_DIR}/${OUT_FILE} ] ); then
@@ -78,22 +73,27 @@ printf "WARNING: expression data not found for ${PROTEIN_A} or ${PROTEIN_B}. Ski
 continue
 fi
 
+if ( [ ! -f variants/${PROTEIN_A}_predictors.txt ] || [ ! -f variants/${PROTEIN_B}_predictors.txt ] ); then
+printf "WARNING: list of predictors not found for ${PROTEIN_A} or ${PROTEIN_B}. Skipping this pair.\n"
+continue
+fi
+
 # Create folder for storing temporary files
-COWAS_TEMP=${OUT_DIR}/temp/${PROTEIN_A}_${PROTEIN_B}
+COWAS_TEMP=${OUT_DIR}/TEMP_${PROTEIN_A}_${PROTEIN_B}
 mkdir ${COWAS_TEMP}
 
 # Extract pre-screened variants for each protein, then create a pvar file listing them
 # and export their genotypes to a text file with 0..2 coding
 plink2 --pfile data_cleaned/ukb_filtered \
        --silent \
-	   --extract variants/${PROTEIN_A}_features.txt \
+	   --extract variants/${PROTEIN_A}_predictors.txt \
 	   --export A \
 	   --export-allele data_cleaned/ukb_alt_alleles.tsv \
 	   --make-just-pvar cols=maybecm \
 	   --out ${COWAS_TEMP}/${PROTEIN_A}
 plink2 --pfile data_cleaned/ukb_filtered \
        --silent \
-	   --extract variants/${PROTEIN_B}_features.txt \
+	   --extract variants/${PROTEIN_B}_predictors.txt \
 	   --export A \
 	   --export-allele data_cleaned/ukb_alt_alleles.tsv \
 	   --make-just-pvar cols=maybecm \
@@ -124,8 +124,9 @@ cat ${COWAS_TEMP}/${PROTEIN_A}.pvar ${COWAS_TEMP}/${PROTEIN_B}.pvar > ${COWAS_TE
 		  --gwas data_cleaned/Bellenguez_2022_AD_gwas.tsv \
 		  --out ${OUT_DIR}/${OUT_FILE} \
 		  --model ${MODEL} \
+		  --cores ${CORES} \
 		  --r2_threshold ${R2_THRESHOLD} \
-		  --cv_folds ${CV_FOLDS}
+		  --rank_normalize TRUE
 
 rm -rf ${COWAS_TEMP}
 
