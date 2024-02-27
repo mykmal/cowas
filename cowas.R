@@ -111,6 +111,8 @@ if (opt$model == "ridge" || opt$model == "lasso" || opt$model == "elastic_net") 
 if (opt$cores > 1L) {
   suppressMessages(library(doMC))
   registerDoMC(cores = opt$cores)
+  
+  suppressMessages(setDTthreads(threads = opt$cores, restore_after_fork = TRUE))
   use_cores <- TRUE
 } else {
   use_cores <- FALSE
