@@ -86,18 +86,18 @@ mkdir ${COWAS_TEMP}
 # and export their genotypes to a text file with 0..2 coding
 plink2 --pfile data_cleaned/ukb_filtered \
        --silent \
-	   --extract variants/${PROTEIN_A}_predictors.txt \
-	   --export A \
-	   --export-allele data_cleaned/ukb_alt_alleles.tsv \
-	   --make-just-pvar cols=maybecm \
-	   --out ${COWAS_TEMP}/${PROTEIN_A}
+       --extract variants/${PROTEIN_A}_predictors.txt \
+       --export A \
+       --export-allele data_cleaned/ukb_alt_alleles.tsv \
+       --make-just-pvar cols=maybecm \
+       --out ${COWAS_TEMP}/${PROTEIN_A}
 plink2 --pfile data_cleaned/ukb_filtered \
        --silent \
-	   --extract variants/${PROTEIN_B}_predictors.txt \
-	   --export A \
-	   --export-allele data_cleaned/ukb_alt_alleles.tsv \
-	   --make-just-pvar cols=maybecm \
-	   --out ${COWAS_TEMP}/${PROTEIN_B}
+       --extract variants/${PROTEIN_B}_predictors.txt \
+       --export A \
+       --export-allele data_cleaned/ukb_alt_alleles.tsv \
+       --make-just-pvar cols=maybecm \
+       --out ${COWAS_TEMP}/${PROTEIN_B}
 
 if ( [ ! -f ${COWAS_TEMP}/${PROTEIN_A}.raw ] || [ ! -f ${COWAS_TEMP}/${PROTEIN_B}.raw ] ); then
 printf "WARNING: Unable to extract genotype data for ${PROTEIN_A} or ${PROTEIN_B}. Skipping this pair.\n"
@@ -116,17 +116,17 @@ cat ${COWAS_TEMP}/${PROTEIN_A}.pvar ${COWAS_TEMP}/${PROTEIN_B}.pvar > ${COWAS_TE
 # And this is where the magic happens!
 ./cowas.R --protein_a ${PROTEIN_A} \
           --protein_b ${PROTEIN_B} \
-		  --genotypes_a ${COWAS_TEMP}/${PROTEIN_A}.gmatrix \
-		  --genotypes_b ${COWAS_TEMP}/${PROTEIN_B}.gmatrix \
-		  --snps ${COWAS_TEMP}/both.snps \
-		  --expression data_cleaned/proteins.tsv \
-		  --covariates data_cleaned/covariates.tsv \
-		  --gwas data_cleaned/Bellenguez_2022_AD_gwas.tsv \
-		  --out ${OUT_DIR}/${OUT_FILE} \
-		  --model ${MODEL} \
-		  --cores ${CORES} \
-		  --r2_threshold ${R2_THRESHOLD} \
-		  --rank_normalize TRUE
+          --genotypes_a ${COWAS_TEMP}/${PROTEIN_A}.gmatrix \
+          --genotypes_b ${COWAS_TEMP}/${PROTEIN_B}.gmatrix \
+          --snps ${COWAS_TEMP}/both.snps \
+          --expression data_cleaned/proteins.tsv \
+          --covariates data_cleaned/covariates.tsv \
+          --gwas data_cleaned/Bellenguez_2022_AD_gwas.tsv \
+          --out ${OUT_DIR}/${OUT_FILE} \
+          --model ${MODEL} \
+          --cores ${CORES} \
+          --r2_threshold ${R2_THRESHOLD} \
+          --rank_normalize TRUE
 
 rm -rf ${COWAS_TEMP}
 

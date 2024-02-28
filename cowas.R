@@ -17,21 +17,21 @@ option_list <- list(
   make_option(
     c("--genotypes_a"),
     help = "Path to a genotype matrix of variants to use as predictors for the first protein.
-	            This should be a tab-separated file with a header line followed by one line
-				per individual, containing individual IDs in the first column and variants
-				with effect allele dosages coded as 0..2 in the remaining columns. [required]"
+                This should be a tab-separated file with a header line followed by one line
+                per individual, containing individual IDs in the first column and variants
+                with effect allele dosages coded as 0..2 in the remaining columns. [required]"
   ),
   make_option(
     c("--genotypes_b"),
     help = "Path to a genotype matrix of variants to use as predictors for the second protein,
-	            formatted the same as --genotypes_a. [required]"
+                formatted the same as --genotypes_a. [required]"
   ),
   make_option(
     c("--snps"),
     help = "Path to a table specifying the reference and effect alleles for each variant present
-				in --genotypes_a and --genotypes_b. This should be a tab-separated file with a
-				header line followed by one line per variant, containing the following three
-				columns: ID, REF, ALT. Other columns are allowed but will be ignored. [required]"
+                in --genotypes_a and --genotypes_b. This should be a tab-separated file with a
+                header line followed by one line per variant, containing the following three
+                columns: ID, REF, ALT. Other columns are allowed but will be ignored. [required]"
   ),
   make_option(
     c("--expression"),
@@ -48,7 +48,7 @@ option_list <- list(
                 columns. Note that categorical variables need to already be coded as dummy
                 variables. [optional]"
   ),
-    make_option(
+  make_option(
     c("--gwas"),
     help = "Path to a GWAS summary statistics file for the disease of interest. This should be
                 a tab-separated file with a header line followed by one line per variant,
@@ -64,18 +64,18 @@ option_list <- list(
   ),
   make_option(
     c("--model"),
-	default = "stepwise",
-	help = "The type of model to fit. Valid options are `stepwise` (linear regression with
-	            both-direction stepwise variable selection), `ridge` (linear regression with
-				a ridge penalty), `lasso` (linear regression with a lasso penalty), and
-				`elastic_net` (linear regression with an elastic net penalty). [default `%default`]"
+    default = "stepwise",
+    help = "The type of model to fit. Valid options are `stepwise` (linear regression with
+                both-direction stepwise variable selection), `ridge` (linear regression with
+                a ridge penalty), `lasso` (linear regression with a lasso penalty), and
+                `elastic_net` (linear regression with an elastic net penalty). [default `%default`]"
   ),
   make_option(
     c("--cores"),
-	default = "1",
-	type = "integer",
-	help = "Number of cores to use for parallelization. The default value disables parallel
-				computation. [default `%default`]"
+    default = "1",
+    type = "integer",
+    help = "Number of cores to use for parallelization. The default value disables parallel
+                computation. [default `%default`]"
   ),
   make_option(
     c("--r2_threshold"),
@@ -84,15 +84,15 @@ option_list <- list(
     help = "R^2 threshold for expression and co-expression prediction models. The COWAS
                 association test will only be performed if all three models have a predictive
                 R^2 value (calculated on a held-out test set) above this threshold.
-				[default %default]"
+                [default %default]"
   ),
   make_option(
     c("--rank_normalize"),
-	action = "store_true",
-	default = TRUE,
-	help = "Perform a rank-based inverse-normal transformation (aka quantile normalization)
-				on the expression phenotypes before fitting models. If FALSE, expression values
-				will simply be centered and scaled. [default %default]"
+    action = "store_true",
+    default = TRUE,
+    help = "Perform a rank-based inverse-normal transformation (aka quantile normalization)
+                on the expression phenotypes before fitting models. If FALSE, expression values
+                will simply be centered and scaled. [default %default]"
   )
 )
 
@@ -159,10 +159,10 @@ if (is.na(opt$covariates)) {
   
   # Center and scale each covariate
   for (column in names(covariates)[-1]) {
-	set(x = covariates, j = column, value = scale(covariates[[column]]))
-	
-	# Remove the covariate if it has NAs or is constant for this subset of individuals
-	if (anyNA(covariates[[column]]) || var(covariates[[column]]) <= 0) {
+    set(x = covariates, j = column, value = scale(covariates[[column]]))
+    
+    # Remove the covariate if it has NAs or is constant for this subset of individuals
+    if (anyNA(covariates[[column]]) || var(covariates[[column]]) <= 0) {
       covariates[, (column) := NULL]
     }
   }
@@ -177,22 +177,22 @@ for (protein in c(opt$protein_a, opt$protein_b)) {
   # Perform quantile normalization if requested
   if (opt$rank_normalize == TRUE) {
     # This offset corresponds to the commonly-used Blom transform
-	offset <- 0.375
-	
-	# Compute the rank of each observation
-	ranks <- rank(expression[[protein]], ties.method = "average")
-	
-	# Perform the transformation
-	expression[, (protein) := stats::qnorm((ranks - offset) / (n_expression - 2 * offset + 1))]
+    offset <- 0.375
+    
+    # Compute the rank of each observation
+    ranks <- rank(expression[[protein]], ties.method = "average")
+    
+    # Perform the transformation
+    expression[, (protein) := stats::qnorm((ranks - offset) / (n_expression - 2 * offset + 1))]
   } else {
     # Otherwise, simply center and scale
-	set(x = expression, j = protein, value = scale(expression[[protein]]))
+    set(x = expression, j = protein, value = scale(expression[[protein]]))
   }
   
   # If covariates were provided, regress them out
   if (!is.na(opt$covariates)) {
     regression <- stats::lm(expression[[protein]] ~ ., data = covariates[, !"IID"])
-	expression[, (protein) := regression$residuals]
+    expression[, (protein) := regression$residuals]
   }
   
   # Check if the processed expression levels are constant or have NAs
@@ -312,21 +312,21 @@ TrainGlmnet <- function(z_a, z_b, z_both, x, alpha) {
                        family = "gaussian", type.measure = "mse",
                        alpha = alpha, nfolds = 10,
                        standardize = FALSE, intercept = TRUE,
-					   parallel = use_cores)
+                       parallel = use_cores)
   
   # Fit an elastic net model for protein_b
   model_b <- cv.glmnet(x = z_b, y = x[, 2],
                        family = "gaussian", type.measure = "mse",
                        alpha = alpha, nfolds = 10,
                        standardize = FALSE, intercept = TRUE,
-					   parallel = use_cores)
+                       parallel = use_cores)
   
   # Fit an elastic net model for the co-expression of protein_a and protein_b
   model_co <- cv.glmnet(x = z_both, y = x[, 3],
                         family = "gaussian", type.measure = "mse",
                         alpha = alpha, nfolds = 10,
                         standardize = FALSE, intercept = TRUE,
-						parallel = use_cores)
+                        parallel = use_cores)
   
   # Save model weights
   # The intercept is ignored because it will be numerically zero
@@ -363,13 +363,13 @@ if (opt$model == "stepwise") {
                                    expression[!test_indices, ])
 } else if (opt$model == "ridge") {
   training_output <- TrainGlmnet(genotypes_a[!test_indices, ], genotypes_b[!test_indices, ], genotypes[!test_indices, ],
-                                expression[!test_indices, ], alpha = 0)
+                                 expression[!test_indices, ], alpha = 0)
 } else if (opt$model == "lasso") {
   training_output <- TrainGlmnet(genotypes_a[!test_indices, ], genotypes_b[!test_indices, ], genotypes[!test_indices, ],
-                                expression[!test_indices, ], alpha = 1)
+                                 expression[!test_indices, ], alpha = 1)
 } else if (opt$model == "elastic_net") {
   training_output <- TrainGlmnet(genotypes_a[!test_indices, ], genotypes_b[!test_indices, ], genotypes[!test_indices, ],
-                                expression[!test_indices, ], alpha = 0.5)
+                                 expression[!test_indices, ], alpha = 0.5)
 }
 
 # Check that all three models have at least some variation in weights among variants
@@ -401,13 +401,13 @@ if (opt$model == "stepwise") {
                                expression)
 } else if (opt$model == "ridge") {
   full_output <- TrainGlmnet(genotypes_a, genotypes_b, genotypes,
-                                expression, alpha = 0)
+                             expression, alpha = 0)
 } else if (opt$model == "lasso") {
   full_output <- TrainGlmnet(genotypes_a, genotypes_b, genotypes,
-                                expression, alpha = 1)
+                             expression, alpha = 1)
 } else if (opt$model == "elastic_net") {
   full_output <- TrainGlmnet(genotypes_a, genotypes_b, genotypes,
-                                expression, alpha = 0.5)
+                             expression, alpha = 0.5)
 }
 
 # Test for association between imputed co-expression and disease ----------------------------------
@@ -434,7 +434,7 @@ stage2 <- function(qtl_weights) {
   if (abs(det(product)) < 1e-20) {
     return(list(theta = NA,
                 variance_theta = NA,
-				rss = NA))
+                rss = NA))
   }
   
   product_inverted <- solve(product)
@@ -449,7 +449,7 @@ stage2 <- function(qtl_weights) {
   
   return(list(theta = theta,
               variance_theta = variance_theta,
-			  rss = rss))
+              rss = rss))
 }
 
 # Fill in zeros for missing variants in the single-protein models to ensure that dimensions match the co-expression model
@@ -523,7 +523,7 @@ output <- c(opt$protein_a, opt$protein_b, n_expression, n_gwas,
             stage2_abc$theta[1,1], stage2_abc$variance_theta[1,1], pvalue_full_a,
             stage2_abc$theta[2,1], stage2_abc$variance_theta[2,2], pvalue_full_b,
             stage2_abc$theta[3,1], stage2_abc$variance_theta[3,3], pvalue_full_co,
-			f_statistic, f_pvalue)
+            f_statistic, f_pvalue)
 
 write.table(t(output), file = opt$out, quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE, append = TRUE)
 

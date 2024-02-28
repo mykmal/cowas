@@ -81,7 +81,7 @@ plink2 --pfile TEMP_6 \
        --out TEMP_7
 
 awk -v FS='\t' '($4 == "A" && $5 == "T") || ($4 == "T" && $5 == "A") || ($4 == "C" && $5 == "G") || ($4 == "G" && $5 == "C") {print $3}' \
-          TEMP_7.pvar > TEMP_palindromic.txt
+            TEMP_7.pvar > TEMP_palindromic.txt
 
 plink2 --pfile TEMP_7 \
        --threads 30 \
