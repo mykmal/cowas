@@ -73,7 +73,7 @@ printf "WARNING: expression data not found for ${PROTEIN_A} or ${PROTEIN_B}. Ski
 continue
 fi
 
-if ( [ ! -f variants/${PROTEIN_A}_predictors.txt ] || [ ! -f variants/${PROTEIN_B}_predictors.txt ] ); then
+if ( [ ! -f predictors/${PROTEIN_A}_variants.txt ] || [ ! -f predictors/${PROTEIN_B}_variants.txt ] ); then
 printf "WARNING: list of predictors not found for ${PROTEIN_A} or ${PROTEIN_B}. Skipping this pair.\n"
 continue
 fi
@@ -86,14 +86,16 @@ mkdir ${COWAS_TEMP}
 # and export their genotypes to a text file with 0..2 coding
 plink2 --pfile data_cleaned/ukb_filtered \
        --silent \
-       --extract variants/${PROTEIN_A}_predictors.txt \
+       --threads ${CORES} \
+       --extract predictors/${PROTEIN_A}_variants.txt \
        --export A \
        --export-allele data_cleaned/ukb_alt_alleles.tsv \
        --make-just-pvar cols=maybecm \
        --out ${COWAS_TEMP}/${PROTEIN_A}
 plink2 --pfile data_cleaned/ukb_filtered \
        --silent \
-       --extract variants/${PROTEIN_B}_predictors.txt \
+       --threads ${CORES} \
+       --extract predictors/${PROTEIN_B}_variants.txt \
        --export A \
        --export-allele data_cleaned/ukb_alt_alleles.tsv \
        --make-just-pvar cols=maybecm \

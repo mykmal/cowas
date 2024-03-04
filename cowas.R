@@ -112,7 +112,7 @@ if (opt$cores > 1L) {
   suppressMessages(library(doMC))
   registerDoMC(cores = opt$cores)
   
-  suppressMessages(setDTthreads(threads = opt$cores, restore_after_fork = TRUE))
+  setDTthreads(threads = opt$cores, restore_after_fork = TRUE)
   use_cores <- TRUE
 } else {
   use_cores <- FALSE
@@ -385,9 +385,9 @@ imputed_co <- predict(training_output$model_co, genotypes[test_indices, ], type 
 # Compute R^2 on the test set
 # R^2 = 1 - MSE / Var(y) = 1 - MSE
 # because here Var(y) = 1
-r2_a <- 1 - mean((expression[test_indices, 1] - imputed_a)^2)
-r2_b <- 1 - mean((expression[test_indices, 2] - imputed_b)^2)
-r2_co <- 1 - mean((expression[test_indices, 3] - imputed_co)^2)
+r2_a <- 1 - mean((expression[test_indices, ][[opt$protein_a]] - imputed_a)^2)
+r2_b <- 1 - mean((expression[test_indices, ][[opt$protein_b]] - imputed_b)^2)
+r2_co <- 1 - mean((expression[test_indices, ][["coexpression"]] - imputed_co)^2)
 
 # Check that all three models pass the R^2 threshold
 if (r2_a < opt$r2_threshold || r2_b < opt$r2_threshold || r2_co < opt$r2_threshold) {
@@ -426,7 +426,7 @@ genotype_disease_correlation <- as.matrix(genotype_disease_correlation)
 ld_matrix <- t(genotypes) %*% genotypes / n_expression
 
 # Formulas for computing the stage 2 effect size and its variance
-stage2 <- function(qtl_weights) {
+stage2 <- function(qtl_weights, n_features) {
   # This formula is derived from ordinary least squares (OLS) regression
   product <- t(qtl_weights) %*% ld_matrix %*% qtl_weights
   
@@ -445,24 +445,31 @@ stage2 <- function(qtl_weights) {
   rss <- n_gwas * (1 - 2 * t(genotype_disease_correlation) %*% qtl_weights %*% theta + t(theta) %*% product %*% theta) - 1
   rss <- as.numeric(rss)
   
-  variance_theta <- product_inverted * rss / ((n_gwas - ncol(qtl_weights) - 1) * n_gwas)
+  variance_theta <- product_inverted * rss / ((n_gwas - n_features - 1) * n_gwas)
   
   return(list(theta = theta,
               variance_theta = variance_theta,
               rss = rss))
 }
 
-# Fill in zeros for missing variants in the single-protein models to ensure that dimensions match the co-expression model
-weights_padded_a <- weights_padded_b <- numeric(length(full_output$weights_co))
-names(weights_padded_a) <- names(weights_padded_b) <- names(full_output$weights_co)
+# Fill in zeros for variants without any weights so that dimensions match across all models
+weights_padded_a <- weights_padded_b <- weights_padded_co <- numeric(ncol(genotypes))
+names(weights_padded_a) <- names(weights_padded_b) <- names(weights_padded_co) <- colnames(genotypes)
 weights_padded_a[names(full_output$weights_a)] <- full_output$weights_a
 weights_padded_b[names(full_output$weights_b)] <- full_output$weights_b
+weights_padded_co[names(full_output$weights_co)] <- full_output$weights_co
+
+# Save the number of variants with nonzero weights in each model
+n_nonzero_a <- sum(full_output$weights_a != 0)
+n_nonzero_b <- sum(full_output$weights_b != 0)
+n_nonzero_co <- sum(full_output$weights_co != 0)
 
 # Compute effect sizes and variances for each model
-stage2_a <- stage2(as.matrix(weights_padded_a))
-stage2_b <- stage2(as.matrix(weights_padded_b))
-stage2_co <- stage2(as.matrix(full_output$weights_co))
-stage2_abc <- stage2(cbind(weights_padded_a, weights_padded_b, full_output$weights_co))
+stage2_a <- stage2(as.matrix(weights_padded_a), n_nonzero_a)
+stage2_b <- stage2(as.matrix(weights_padded_b), n_nonzero_b)
+stage2_co <- stage2(as.matrix(weights_padded_co), n_nonzero_co)
+stage2_abc <- stage2(cbind(weights_padded_a, weights_padded_b, weights_padded_co),
+                     n_nonzero_a + n_nonzero_b + n_nonzero_co)
 
 # Convert from 1x1 matrix to numeric
 stage2_a$theta <- as.numeric(stage2_a$theta)
@@ -514,9 +521,9 @@ f_pvalue <- stats::pf(f_statistic, 3, n_gwas - 4, lower.tail = FALSE)
 
 # Append results to the output file
 output <- c(opt$protein_a, opt$protein_b, n_expression, n_gwas,
-            sum(full_output$weights_a != 0), r2_a,
-            sum(full_output$weights_b != 0), r2_b,
-            sum(full_output$weights_co != 0), r2_co,
+            n_nonzero_a, r2_a,
+            n_nonzero_b, r2_b,
+            n_nonzero_co, r2_co,
             stage2_a$theta, stage2_a$variance_theta, pvalue_direct_a,
             stage2_b$theta, stage2_b$variance_theta, pvalue_direct_b,
             stage2_co$theta, stage2_co$variance_theta, pvalue_direct_co,
