@@ -12,14 +12,14 @@ wget https://github.com/mykmal/cowas/archive/refs/heads/main.zip
 unzip main.zip && rm main.zip
 mv cowas-main cowas && cd cowas
 ```
-2. Launch R and install the required packages optparse and data.table. If you wish to use ridge, lasso, or elastic net models then also install the package glmnet. If you wish to utilize parallel computation in glmnet then also install the package doMC. We used R 4.3.0, optparse 1.7.4, data.table 1.15.0, glmnet 4.1-8, and doMC 1.3.8.
+2. Launch R and install the required packages optparse and data.table. If you wish to use ridge, lasso, or elastic net models then also install the package glmnet. If you wish to utilize parallel computation in glmnet then also install the package doMC. We used R 4.3.0, optparse 1.7.4, data.table 1.15.2, glmnet 4.1-8, and doMC 1.3.8.
 ```R
 install.packages(c("optparse", "data.table", "glmnet", "doMC"))
 ```
-3. Download PLINK 2.00 and place it in a directory on your PATH. We used PLINK v2.00a6LM AVX2 AMD (5 Feb 2024).
+3. Download PLINK 2.00 and place it in a directory on your PATH. We used PLINK v2.00a6LM AVX2 AMD (2 Mar 2024).
 ```bash
-wget https://s3.amazonaws.com/plink2-assets/plink2_linux_amd_avx2_20240205.zip
-unzip plink2_linux_amd_avx2_20240205.zip && rm plink2_linux_amd_avx2_20240205.zip
+wget https://s3.amazonaws.com/plink2-assets/plink2_linux_amd_avx2_20240302.zip
+unzip plink2_linux_amd_avx2_20240302.zip && rm plink2_linux_amd_avx2_20240302.zip
 sudo mv plink2 /usr/local/bin/
 ```
 
@@ -41,6 +41,8 @@ To obtain individual-level data from the UK Biobank you will need to submit an a
 * Data-Field 30900 within Category 1839 (UKB-PPP proteomics data)
 
 Next, use PLINK to convert the genotype data to PLINK 2 binary format. Our scripts assume that the genotype data is stored in chromosome-specific files with filenames `ukb_chr<CHR>.pgen` + `ukb_chr<CHR>.psam` + `ukb_chr<CHR>.pvar`. Furthermore, we assume that the proteomics data is stored in a tab-separated file named `olink_data.tsv` beginning with a header line and containing the following four columns: eid, ins_index, protein_id, result. Finally, we assume that the remaining data fields listed above are stored in a single tab-separated file named `ukb_main_dataset.tsv` beginning with a header line and containing the following 13 columns: f.eid, f.31.0.0, f.54.0.0, f.54.1.0, f.54.2.0, f.54.3.0, f.21003.0.0, f.21003.1.0, f.21003.2.0, f.21003.3.0, f.22000.0.0, f.22006.0.0, f.22020.0.0. Copy all of these files to a new subfolder named `data_raw` within your main COWAS folder.
+
+You will also need Data-Coding 143, which is a flat list containing UniProt IDs for each assayed protein. Download the file `coding143.tsv` from <https://biobank.ndph.ox.ac.uk/ukb/coding.cgi?id=143> and place it in `data_raw`.
 
 ## Alzheimer's disease GWAS
 
@@ -71,9 +73,9 @@ For each protein, COWAS requires a list of genetic variants to be used as predic
 2. **Variants that are pQTLs.** Instead of ranking features by their correlation with the response, they can be ranked by their marginal association *P*-value. That is, the top $d$ (e.g. top 100) most significant pQTLs for the given protein can be used as predictors. Alternatively, one may wish to include all variants that pass a nominal significance threshold.
 3. **Variants located near the gene coding for the given protein.** Since most of the genetic heritability of expression is explained by *cis*-QTLs, the two previous approaches can be restricted to variants that act locally on the gene coding for the given protein. For example, one may wish to include variants within a 1 Mb window of the gene boundaries. A protein annotation file listing, among other things, the start and end positions for all genes encoding the proteins included in UKB-PPP is available at <https://www.synapse.org/#!Synapse:syn52364558>. (Note that the positions in this file are on the GRCh38 build, while the UKB genotype data is on the GRCh37 build.)
 
-We provide the script `map_pqtls.sh` for computing variant-protein associations for all proteins in the UKB-PPP dataset. The resulting summary statistics are saved to protein-specific, tab-separated files named `pqtls/<PROTEIN_CODE>_sumstats.tsv` with one line per variant and the following six columns: #CHROM, POS, ID, A1, BETA, P. These summary statistics can then be filtered to select predictors for the expression imputation models according to either the strength of their correlation (BETA) or the significance of their association (P).
+We provide the script `map_pqtls.sh` for computing variant-protein associations for all proteins in the UKB-PPP dataset. The resulting summary statistics are saved to protein-specific, tab-separated files named `pqtls/<GENE_NAME>.sumstats.tsv` with one line per variant and the following six columns: #CHROM, POS, ID, A1, BETA, P. These summary statistics can then be filtered to select predictors for the expression imputation models according to either the strength of their correlation (BETA) or the significance of their association (P).
 
-Once you have determined which variants to use as predictors for each protein, save them to protein-specific files named `predictors/<PROTEIN_CODE>_variants.txt` with one rsID per line.
+Once you have determined which variants to use as predictors for each protein, save them to protein-specific files named `predictors/<GENE_NAME>.variants.txt` with one rsID per line.
 
 ## Running COWAS
 

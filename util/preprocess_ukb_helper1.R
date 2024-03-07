@@ -3,6 +3,7 @@ library(data.table)
 # Load data
 ukb_main_dataset <- fread(file = "data_raw/ukb_main_dataset.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE)
 olink_data <- fread(file = "data_raw/olink_data.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE)
+olink_coding <- fread(file = "data_raw/coding143.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE)
 genotyped_samples <- fread(file = "TEMP_1.psam", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE, select = 2)
 
 # Subset to high-quality, unrelated, White British samples
@@ -13,15 +14,18 @@ ukb_main_dataset[, c("f.54.1.0", "f.54.2.0", "f.54.3.0", "f.21003.1.0", "f.21003
 ukb_main_dataset <- na.omit(ukb_main_dataset)
 setnames(ukb_main_dataset, c("IID", "SEX", "ASSESSMENT_CENTER", "AGE", "MEASUREMENT_BATCH"))
 
-# Reformat the proteomics data
+# Keep samples assessed at the initial visit
 olink_data <- olink_data[ins_index == 0, ]
 olink_data[, ins_index := NULL]
 olink_data <- na.omit(olink_data)
-olink_data <- dcast(olink_data, eid ~ protein_id, value.var = "result")
-sorted_protein_columns <- c("eid", sort(as.integer(names(olink_data)[-1])))
-olink_data <- olink_data[, ..sorted_protein_columns]
-setnames(olink_data, paste0("protein_", names(olink_data)))
-setnames(olink_data, "protein_eid", "IID")
+
+# Replace dummy protein identifiers with their gene names
+olink_coding[, c("gene_id", "full_name") := tstrsplit(meaning, ";", fixed = TRUE)]
+olink_data[, protein_id_replaced := olink_coding[match(olink_data$protein_id, olink_coding$coding), "gene_id"]]
+
+# Convert the proteomic data from long to wide format
+olink_data <- dcast(olink_data, eid ~ protein_id_replaced, value.var = "result")
+setnames(olink_data, "eid", "IID")
 
 # Subset all datasets to a common set of samples
 common_samples <- Reduce(intersect,
