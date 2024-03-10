@@ -84,7 +84,7 @@ option_list <- list(
     help = "R^2 threshold for expression and co-expression prediction models. The COWAS
                 association test will only be performed if all three models have a predictive
                 R^2 value (calculated on a held-out test set) above this threshold.
-                [default %default]"
+                [default `%default`]"
   ),
   make_option(
     c("--rank_normalize"),
@@ -92,7 +92,7 @@ option_list <- list(
     default = TRUE,
     help = "Perform a rank-based inverse-normal transformation (aka quantile normalization)
                 on the expression phenotypes before fitting models. If FALSE, expression values
-                will simply be centered and scaled. [default %default]"
+                will simply be centered and scaled. [default `%default`]"
   )
 )
 
@@ -341,14 +341,9 @@ TrainGlmnet <- function(z_a, z_b, z_both, x, alpha) {
 # Train and evaluate the prediction models --------------------------------------------------------
 
 # Match up the genotype and expression data by sample ID, since we need to remove the IID column before model training
-data_merged <- merge(expression, genotypes, by = "IID")
-expression_columns <- c(opt$protein_a, opt$protein_b, "coexpression")
-expression <- data_merged[, ..expression_columns]
-rsids <- names(genotypes)[-1]
-genotypes <- data_merged[, ..rsids]
-
-# Free up memory
-rm(data_merged)
+expression <- expression[match(genotypes$IID, IID), ]
+expression[, IID := NULL]
+genotypes[, IID := NULL]
 
 # Extract protein-specific variants from the joint genotype matrix
 genotypes_a <- genotypes[, ..variants_a]
