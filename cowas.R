@@ -66,9 +66,10 @@ option_list <- list(
     c("--model"),
     default = "stepwise",
     help = "The type of model to fit. Valid options are `stepwise` (linear regression with
-                both-direction stepwise variable selection), `ridge` (linear regression with
-                a ridge penalty), `lasso` (linear regression with a lasso penalty), and
-                `elastic_net` (linear regression with an elastic net penalty). [default `%default`]"
+                both-direction stepwise variable selection by AIC), `ridge` (linear regression
+                with an L2 penalty), `lasso` (linear regression with an L1 penalty), and
+                `elastic_net` (linear regression with a linear combination of the L1 and L2
+                penalties). [default `%default`]"
   ),
   make_option(
     c("--cores"),
@@ -330,9 +331,9 @@ TrainGlmnet <- function(z_a, z_b, z_both, x, alpha) {
   
   # Save model weights
   # The intercept is ignored because it will be numerically zero
-  model_a_weights <- coef(model_a, s = "lambda.1se")[-1, ]
-  model_b_weights <- coef(model_b, s = "lambda.1se")[-1, ]
-  model_co_weights <- coef(model_co, s = "lambda.1se")[-1, ]
+  model_a_weights <- coef(model_a, s = "lambda.min")[-1, ]
+  model_b_weights <- coef(model_b, s = "lambda.min")[-1, ]
+  model_co_weights <- coef(model_co, s = "lambda.min")[-1, ]
   
   return(list(weights_a = model_a_weights, weights_b = model_b_weights, weights_co = model_co_weights,
               model_a = model_a, model_b = model_b, model_co = model_co))
@@ -373,9 +374,21 @@ if (var(training_output$weights_a) <= 0 || var(training_output$weights_b) <= 0 |
 }
 
 # Get predicted values on the test set
-imputed_a <- predict(training_output$model_a, genotypes_a[test_indices, ], type = "response")
-imputed_b <- predict(training_output$model_b, genotypes_b[test_indices, ], type = "response")
-imputed_co <- predict(training_output$model_co, genotypes[test_indices, ], type = "response")
+if (opt$model == "stepwise") {
+  imputed_a <- predict(object = training_output$model_a, newdata = genotypes_a[test_indices, ],
+                       type = "response")
+  imputed_b <- predict(object = training_output$model_b, newdata = genotypes_b[test_indices, ],
+                       type = "response")
+  imputed_co <- predict(object = training_output$model_co, newdata = genotypes[test_indices, ],
+                        type = "response")
+} else {
+  imputed_a <- predict(object = training_output$model_a, newx = as.matrix(genotypes_a[test_indices, ]),
+                       s = "lambda.min", type = "response")
+  imputed_b <- predict(object = training_output$model_b, newx = as.matrix(genotypes_b[test_indices, ]),
+                       s = "lambda.min", type = "response")
+  imputed_co <- predict(object = training_output$model_co, newx = as.matrix(genotypes[test_indices, ]),
+                        s = "lambda.min", type = "response")
+}
 
 # Compute R^2 on the test set
 # R^2 = 1 - MSE / Var(y) = 1 - MSE
