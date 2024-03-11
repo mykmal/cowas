@@ -440,8 +440,8 @@ stage2 <- function(qtl_weights, n_features) {
   
   # Check if the product matrix is invertible
   if (abs(det(product)) < 1e-20) {
-    return(list(theta = NA,
-                variance_theta = NA,
+    return(list(theta = matrix(data = NA, nrow = ncol(qtl_weights), ncol = 1),
+                variance_theta = matrix(data = NA, nrow = ncol(qtl_weights), ncol = ncol(qtl_weights)),
                 rss = NA))
   }
   
@@ -524,8 +524,13 @@ if (!anyNA(stage2_abc$variance_theta)) {
 }
 
 # Perform an F-test to determine if the stage 2 model with three terms is significantly better than a null model
-f_statistic <- ((n_gwas - 4) * (n_gwas - 1 - as.numeric(stage2_abc$rss))) / (3 * as.numeric(stage2_abc$rss))
-f_pvalue <- stats::pf(f_statistic, 3, n_gwas - 4, lower.tail = FALSE)
+if (!is.na(stage2_abc$rss)) {
+  stage2_abc$rss <- as.numeric(stage2_abc$rss)
+  f_statistic <- ((n_gwas - 4) * (n_gwas - 1 - stage2_abc$rss)) / (3 * stage2_abc$rss)
+  f_pvalue <- stats::pf(f_statistic, 3, n_gwas - 4, lower.tail = FALSE)
+} else {
+  f_statistic <- f_pvalue <- NA
+}
 
 # Append results to the output file
 output <- c(opt$protein_a, opt$protein_b, n_expression, n_gwas,
