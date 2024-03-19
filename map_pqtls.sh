@@ -12,7 +12,7 @@
 mkdir pqtls
 
 # Perform association testing
-plink2 --pfile data_cleaned/ukb_filtered \
+plink2 --pfile data_cleaned/genotypes \
        --no-psam-pheno \
        --threads 128 \
        --memory 420000 \
@@ -32,8 +32,8 @@ for FILENAME in *.glm.linear; do
 done
 
 # GLIPR1 only has 106 non-missing samples, and within that subset some covariates are constant or collinear.
-# Those covariates must be removed before performing a GWAS for this protein, or else PLINK will crash
-plink2 --pfile data_cleaned/ukb_filtered \
+# Those covariates must be removed before performing a GWAS for this protein, or else PLINK will crash.
+plink2 --pfile data_cleaned/genotypes \
        --no-psam-pheno \
        --threads 128 \
        --memory 420000 \

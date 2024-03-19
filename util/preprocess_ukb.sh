@@ -100,21 +100,12 @@ plink2 --pfile TEMP_8 \
        --memory 120000 \
        --extract TEMP_indep_variants.prune.in \
        --make-pgen \
-       --out TEMP_FINAL
-
-Rscript --vanilla util/preprocess_ukb_helper2.R
-
-plink2 --pfile TEMP_FINAL \
-       --threads 30 \
-       --memory 120000 \
-       --extract TEMP_mutual_variants.txt \
-       --make-pgen psam-cols=sex \
-       --out data_cleaned/ukb_filtered
+       --out data_cleaned/genotypes
 
 rm TEMP*
 
 # Extract ALT alleles, in order to keep them consistent across COWAS runs
-awk -v FS="\t" -v OFS="\t" '!/^#/ {print $3,$5}' data_cleaned/ukb_filtered.pvar > data_cleaned/ukb_alt_alleles.tsv
+awk -v FS="\t" -v OFS="\t" '!/^#/ {print $3,$5}' data_cleaned/genotypes.pvar > data_cleaned/ukb_alt_alleles.tsv
 
 # Long-range LD regions in GRCh37 are from table S12 of https://www.biorxiv.org/content/10.1101/166298v1
 printf "1 48000000 52000000\n\
@@ -141,7 +132,7 @@ printf "1 48000000 52000000\n\
 12 109500000 112000000\n\
 20 32000000 34500000\n" > TEMP_long_range_ld.txt
 
-plink2 --pfile data_cleaned/ukb_filtered \
+plink2 --pfile data_cleaned/genotypes \
        --threads 30 \
        --memory 120000 \
        --exclude bed1 TEMP_long_range_ld.txt \
@@ -167,8 +158,18 @@ plink2 --pfile TEMP_PCA_2 \
        --pca 20 \
        --out TEMP_top20_pcs
 
-Rscript --vanilla util/preprocess_ukb_helper3.R
+Rscript --vanilla util/preprocess_ukb_helper2.R
 
 rm data_cleaned/covariates_nopc.tsv
+
+Rscript --vanilla util/preprocess_ukb_helper3.R
+
+plink2 --pfile data_cleaned/genotypes \
+       --threads 30 \
+       --memory 120000 \
+       --extract TEMP_mutual_AD_variants.txt \
+       --make-pgen psam-cols=sex \
+       --out data_cleaned/genotypes_subset_for_AD
+
 rm TEMP*
 

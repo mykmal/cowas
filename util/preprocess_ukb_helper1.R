@@ -57,8 +57,8 @@ for (column in names(ukb_main_dataset)[-1]) {
   }
 }
 
-# Remove proteins that have become fully NA or constant after the subsetting
-# Note that here we allow some NAs to remain because none of the individuals have data for all proteins
+# Remove proteins that have become fully NA or constant after the subsetting.
+# Note that here we allow some NAs to remain because none of the individuals have data for all proteins.
 for (column in names(olink_data)[-1]) {
   if (all(is.na(olink_data[[column]])) || var(olink_data[[column]], na.rm = TRUE) <= 0) {
     olink_data[, (column) := NULL]
