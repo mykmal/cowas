@@ -99,7 +99,7 @@ plink2 --pfile TEMP_8 \
        --threads 30 \
        --memory 120000 \
        --extract TEMP_indep_variants.prune.in \
-       --make-pgen \
+       --make-pgen psam-cols=sex \
        --out data_cleaned/genotypes
 
 rm TEMP*
