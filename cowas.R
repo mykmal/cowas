@@ -202,9 +202,6 @@ for (protein in c(opt$protein_a, opt$protein_b)) {
   }
 }
 
-# Finally, compute the co-expression between the two proteins
-set(x = expression, j = "coexpression", value = expression[[opt$protein_a]] * expression[[opt$protein_b]])
-
 # Load variant data and harmonize it with genotype data -------------------------------------------
 
 # Read variant list and remove duplicates
@@ -271,23 +268,32 @@ TrainStepwise <- function(z_a, z_b, z_both, x) {
   setnames(data_a, 1, "x_a")
   data_b <- cbind(x[, 2], z_b)
   setnames(data_b, 1, "x_b")
-  data_co <- cbind(x[, 3], z_both)
-  setnames(data_co, 1, "x_co")
   
   # Free up memory
-  rm(z_a, z_b, z_both, x)
+  rm(z_a, z_b, x)
   
   # The full model formulas
   formula_full_a <- as.formula(paste0("x_a ~ ", paste0(names(data_a)[-1], collapse = " + ")))
   formula_full_b <- as.formula(paste0("x_b ~ ", paste0(names(data_b)[-1], collapse = " + ")))
-  formula_full_co <- as.formula(paste0("x_co ~ ", paste0(names(data_co)[-1], collapse = " + ")))
   
   # Fit models for each protein
   lm_null_a <- stats::lm(x_a ~ 1, data = data_a)
   lm_null_b <- stats::lm(x_b ~ 1, data = data_b)
-  lm_null_co <- stats::lm(x_co ~ 1, data = data_co)
   step_a <- stats::step(lm_null_a, scope = formula_full_a, direction = "both", trace = 0)
   step_b <- stats::step(lm_null_b, scope = formula_full_b, direction = "both", trace = 0)
+  
+  # Compute the conditional co-expression
+  pred_a <- predict(object = step_a, newdata = data_a, type = "response")
+  pred_b <- predict(object = step_b, newdata = data_b, type = "response")
+  x_co <- (data_a$x_a - pred_a) * (data_b$x_b - pred_b)
+  
+  # Create a data table containing co-expression values and all variants
+  data_co <- cbind(x_co, z_both)
+  rm(pred_a, pred_b, x_co, z_both)
+  
+  # Train a model to predict conditional co-expression
+  formula_full_co <- as.formula(paste0("x_co ~ ", paste0(names(data_co)[-1], collapse = " + ")))
+  lm_null_co <- stats::lm(x_co ~ 1, data = data_co)
   step_co <- stats::step(lm_null_co, scope = formula_full_co, direction = "both", trace = 0)
   
   # Save fitted model weights
@@ -322,8 +328,13 @@ TrainGlmnet <- function(z_a, z_b, z_both, x, alpha) {
                        standardize = FALSE, intercept = TRUE,
                        parallel = use_cores)
   
-  # Fit an elastic net model for the co-expression of protein_a and protein_b
-  model_co <- cv.glmnet(x = z_both, y = x[, 3],
+  # Compute the conditional co-expression
+  pred_a <- predict(object = model_a, newx = z_a, s = "lambda.min", type = "response")
+  pred_b <- predict(object = model_b, newx = z_b, s = "lambda.min", type = "response")
+  coex <- (x[, 1] - pred_a) * (x[, 2] - pred_b)
+  
+  # Fit an elastic net model for the conditional co-expression of protein_a and protein_b
+  model_co <- cv.glmnet(x = z_both, y = coex,
                         family = "gaussian", type.measure = "mse",
                         alpha = alpha, nfolds = 10,
                         standardize = FALSE, intercept = TRUE,
@@ -375,31 +386,19 @@ if (var(training_output$weights_a) <= 0 || var(training_output$weights_b) <= 0 |
 
 # Get predicted values on the test set
 if (opt$model == "stepwise") {
-  imputed_a <- predict(object = training_output$model_a, newdata = genotypes_a[test_indices, ],
-                       type = "response")
-  imputed_b <- predict(object = training_output$model_b, newdata = genotypes_b[test_indices, ],
-                       type = "response")
-  imputed_co <- predict(object = training_output$model_co, newdata = genotypes[test_indices, ],
-                        type = "response")
+  imputed_test_a <- predict(object = training_output$model_a, newdata = genotypes_a[test_indices, ],
+                            type = "response")
+  imputed_test_b <- predict(object = training_output$model_b, newdata = genotypes_b[test_indices, ],
+                            type = "response")
+  imputed_test_co <- predict(object = training_output$model_co, newdata = genotypes[test_indices, ],
+                             type = "response")
 } else {
-  imputed_a <- predict(object = training_output$model_a, newx = as.matrix(genotypes_a[test_indices, ]),
-                       s = "lambda.min", type = "response")
-  imputed_b <- predict(object = training_output$model_b, newx = as.matrix(genotypes_b[test_indices, ]),
-                       s = "lambda.min", type = "response")
-  imputed_co <- predict(object = training_output$model_co, newx = as.matrix(genotypes[test_indices, ]),
-                        s = "lambda.min", type = "response")
-}
-
-# Compute R^2 on the test set
-# R^2 = 1 - MSE / Var(y) = 1 - MSE
-# because here Var(y) = 1
-r2_a <- 1 - mean((expression[test_indices, ][[opt$protein_a]] - imputed_a)^2)
-r2_b <- 1 - mean((expression[test_indices, ][[opt$protein_b]] - imputed_b)^2)
-r2_co <- 1 - mean((expression[test_indices, ][["coexpression"]] - imputed_co)^2)
-
-# Check that all three models pass the R^2 threshold
-if (r2_a < opt$r2_threshold || r2_b < opt$r2_threshold || r2_co < opt$r2_threshold) {
-  stop("At least one of the models in the pair ", opt$protein_a, " - ", opt$protein_b, " fails the R^2 threshold. This pair will be skipped.")
+  imputed_test_a <- predict(object = training_output$model_a, newx = as.matrix(genotypes_a[test_indices, ]),
+                            s = "lambda.min", type = "response")
+  imputed_test_b <- predict(object = training_output$model_b, newx = as.matrix(genotypes_b[test_indices, ]),
+                            s = "lambda.min", type = "response")
+  imputed_test_co <- predict(object = training_output$model_co, newx = as.matrix(genotypes[test_indices, ]),
+                             s = "lambda.min", type = "response")
 }
 
 # Fit full-sample models
@@ -416,6 +415,34 @@ if (opt$model == "stepwise") {
 } else if (opt$model == "elastic_net") {
   full_output <- TrainGlmnet(genotypes_a, genotypes_b, genotypes,
                              expression, alpha = 0.5)
+}
+
+# Get predicted values on the full data set, to use in computing full-sample conditional co-expression
+if (opt$model == "stepwise") {
+  imputed_full_a <- predict(object = full_output$model_a, newdata = genotypes_a,
+                            type = "response")
+  imputed_full_b <- predict(object = full_output$model_b, newdata = genotypes_b,
+                            type = "response")
+} else {
+  imputed_full_a <- predict(object = full_output$model_a, newx = as.matrix(genotypes_a),
+                            s = "lambda.min", type = "response")
+  imputed_full_b <- predict(object = full_output$model_b, newx = as.matrix(genotypes_b),
+                            s = "lambda.min", type = "response")
+}
+
+# Compute the conditional co-expression between the two proteins using full-sample model weights
+set(x = expression, j = "coexpression", value = (expression[[opt$protein_a]] - imputed_full_a) * (expression[[opt$protein_b]] - imputed_full_b))
+
+# Compute R^2 on the test set
+# R^2 = 1 - MSE / Var(y) = 1 - MSE
+# because here Var(y) = 1
+r2_a <- 1 - mean((expression[test_indices, ][[opt$protein_a]] - imputed_test_a)^2)
+r2_b <- 1 - mean((expression[test_indices, ][[opt$protein_b]] - imputed_test_b)^2)
+r2_co <- 1 - mean((expression[test_indices, ][["coexpression"]] - imputed_test_co)^2)
+
+# Check that all three models pass the R^2 threshold
+if (r2_a < opt$r2_threshold || r2_b < opt$r2_threshold || r2_co < opt$r2_threshold) {
+  stop("At least one of the models in the pair ", opt$protein_a, " - ", opt$protein_b, " fails the R^2 threshold. This pair will be skipped.")
 }
 
 # Test for association between imputed co-expression and disease ----------------------------------
