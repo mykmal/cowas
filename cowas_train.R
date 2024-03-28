@@ -329,8 +329,8 @@ if (opt$model == "stepwise") {
                                  expression[!test_indices, ], alpha = 0.5)
 }
 
-# Check that all three models have at least some variation in weights among variants
-if (var(training_output$weights_a) <= 0 || var(training_output$weights_b) <= 0 || var(training_output$weights_co) <= 0) {
+# Check that each of the three models has at least one variant with a nonzero weight
+if (sum(training_output$weights_a != 0) <= 0 || sum(training_output$weights_b != 0) <= 0 || sum(training_output$weights_co != 0) <= 0) {
   stop("At least one of the models in the pair ", opt$protein_a, "_", opt$protein_b, " has no nonzero weights. This pair will be skipped.")
 }
 
@@ -367,6 +367,16 @@ if (opt$model == "stepwise") {
                              expression, alpha = 0.5)
 }
 
+# Get the number of variants with nonzero weights in each model
+n_nonzero_a <- sum(full_output$weights_a != 0)
+n_nonzero_b <- sum(full_output$weights_b != 0)
+n_nonzero_co <- sum(full_output$weights_co != 0)
+
+# Check that each of the three models has at least one variant with a nonzero weight
+if (n_nonzero_a <= 0 || n_nonzero_b <= 0 || n_nonzero_co <= 0) {
+  stop("At least one of the models in the pair ", opt$protein_a, "_", opt$protein_b, " has no nonzero weights. This pair will be skipped.")
+}
+
 # Get predicted values on the full data set, to use in computing full-sample conditional co-expression
 if (opt$model == "stepwise") {
   imputed_full_a <- predict(object = full_output$model_a, newdata = genotypes_a,
@@ -399,17 +409,13 @@ if (r2_a < opt$r2_threshold || r2_b < opt$r2_threshold || r2_co < opt$r2_thresho
 weights_final <- full_output[c("weights_a", "weights_b", "weights_co")]
 saveRDS(weights_final, file = paste0(opt$out_folder, "/", opt$protein_a, "_", opt$protein_b, ".weights.rds"))
 
-# Get the number of variants with nonzero weights in each model
-n_nonzero_a <- sum(full_output$weights_a != 0)
-n_nonzero_b <- sum(full_output$weights_b != 0)
-n_nonzero_co <- sum(full_output$weights_co != 0)
-
-# Append performance metrics to the output file
+# Gather performance metrics
 metrics <- c(opt$protein_a, opt$protein_b, n_expression,
              n_nonzero_a, r2_a,
              n_nonzero_b, r2_b,
              n_nonzero_co, r2_co)
 
+# Append the performance metrics to the output file
 write.table(t(metrics), file = paste0(opt$out_folder, "/performance_metrics.tsv"),
             quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE, append = TRUE)
 

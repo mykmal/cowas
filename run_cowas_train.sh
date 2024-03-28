@@ -116,17 +116,17 @@ cut -f 2,7- ${COWAS_TEMP}/${PROTEIN_A}.raw > ${COWAS_TEMP}/${PROTEIN_A}.gmatrix
 cut -f 2,7- ${COWAS_TEMP}/${PROTEIN_B}.raw > ${COWAS_TEMP}/${PROTEIN_B}.gmatrix
 
 # And this is where the magic happens!
-./cowas.R --protein_a ${PROTEIN_A} \
-          --protein_b ${PROTEIN_B} \
-          --genotypes_a ${COWAS_TEMP}/${PROTEIN_A}.gmatrix \
-          --genotypes_b ${COWAS_TEMP}/${PROTEIN_B}.gmatrix \
-          --expression ${EXPRESSION} \
-          --covariates ${COVARIATES} \
-          --out_FOLDER ${OUT_DIR} \
-          --model ${MODEL} \
-          --cores ${CORES} \
-          --r2_threshold ${R2_THRESHOLD} \
-          --rank_normalize TRUE
+./cowas_train.R --protein_a ${PROTEIN_A} \
+                --protein_b ${PROTEIN_B} \
+                --genotypes_a ${COWAS_TEMP}/${PROTEIN_A}.gmatrix \
+                --genotypes_b ${COWAS_TEMP}/${PROTEIN_B}.gmatrix \
+                --expression ${EXPRESSION} \
+                --covariates ${COVARIATES} \
+                --out_folder ${OUT_DIR} \
+                --model ${MODEL} \
+                --cores ${CORES} \
+                --r2_threshold ${R2_THRESHOLD} \
+                --rank_normalize TRUE
 
 rm -rf ${COWAS_TEMP}
 
