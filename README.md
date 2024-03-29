@@ -14,7 +14,7 @@ mv cowas-main cowas && cd cowas
 ```
 2. Launch R and install the required packages optparse and data.table. If you wish to use ridge, lasso, or elastic net models then also install the package glmnet. If you wish to utilize parallel computation in glmnet then also install the package doMC. We used R 4.3.0, optparse 1.7.4, data.table 1.15.2, glmnet 4.1-8, and doMC 1.3.8.
 ```R
-install.packages(c("optparse", "data.table", "glmnet", "doMC"))
+> install.packages(c("optparse", "data.table", "glmnet", "doMC"))
 ```
 3. Download PLINK 2.00 and place it in a directory on your PATH. We used PLINK v2.00a6LM AVX2 AMD (2 Mar 2024).
 ```bash
@@ -27,15 +27,35 @@ sudo mv plink2 /usr/local/bin/
 
 This section describes how to perform a co-expression-wide association study (COWAS) for any disease or phenotype of interest.
 
-## Variant screening tips
+## Running COWAS with pre-trained weights
 
-For each protein, COWAS requires a list of genetic variants to be used as predictors in its expression imputation model. We considered three approaches for selecting variants:
+## Training your own prediction models
+
+If you have access to individual-level genotype data and individual-level gene/protein expression data, you can train your own co-expression prediction models. Model training is performed for one pair of proteins at a time using the script `cowas_train.R`, which can be run directly from the command line. To view the required inputs and the documentation for each command-line option, run `./cowas_train.R --help`.
+
+The `cowas_train` script will save fitted model weights to an RDS file named `<PROTEIN_A>_<PROTEIN_B>.weights.rds` in the specified output directory. The RDS file stores a list of three named vectors, which contain genetic variant weights for the two single-protein models and the co-expression model. This RDS file can be directly used as input for the `cowas_test` script. In addition to saving model weights, `cowas_train` will also write model performance metrics to a tab-separated file named `performance_metrics.tsv` within the specified output directory. (Note that if this file already exists, a new line will be appended to its end.) The performance metrics file contains one line per protein pair and the following nine columns:
+
+1. Name or identifier of the first protein (i.e. <PROTEIN_A>)
+2. Name or identifier of the second protein (i.e. <PROTEIN_B>)
+3. Full sample size
+4. Number of variants with nonzero weights in the PROTEIN_A model
+5. $R^2$ value of the PROTEIN_A model evaluated on a held-out 20% test set
+6. Number of variants with nonzero weights in the PROTEIN_B model
+7. $R^2$ value of the PROTEIN_B model evaluated on a held-out 20% test set
+8. Number of variants with nonzero weights in the co-expression model
+9. $R^2$ value of the co-expression model evaluated on a held-out 20% test set
+
+In practice, you will probably want to use a shell script to automatically run `cowas_train` on all protein pairs in a specified list. We provide the script `utils/run_cowas_train.sh` to do just that. For each protein pair, this script will automatically extract predictor variants from a PLINK-format file, convert their genotypes to the required format for COWAS, and then run `cowas_train`. All of the necessary parameters are set as environmental variables at the top of the script; see the accompanying comments for usage instructions.
+
+### Variant screening tips
+
+The `cowas_train` script will use all variants in the provided genotype matrices as model inputs. Thus, you need to select which genetic variants to use as predictors for each protein before running `cowas_train.R` or `run_cowas_train.sh`. We considered three approaches for pre-screening variants:
 
 1. **Variants selected by sure independence screening (SIS).** SIS is a variable selection method based on correlation learning. First, componentwise regression is performed to compute the marginal correlation between each standardized feature (genetic variant) and the response (protein expression). Then the features are ranked by the absolute values of their correlations, and the top $d$ (e.g. top 100) are selected as predictors.
 2. **Variants that are pQTLs.** Instead of ranking features by their correlation with the response, they can be ranked by their marginal association $P$-value. That is, the top $d$ (e.g. top 100) most significant pQTLs for the given protein can be used as predictors. Alternatively, one may wish to include all variants that pass a nominal significance threshold.
-3. **Variants located near the gene coding for the given protein.** Since most of the genetic heritability of expression is explained by *cis*-QTLs, the two previous approaches can be restricted to variants that act locally on the gene coding for the given protein. For example, one may wish to include variants within a 1 Mb window of the gene boundaries. If you're using the UK Biobank plasma proteomics (UKB-PPP) data, you can find the start and end positions for all genes encoding the assayed proteins at <https://www.synapse.org/#!Synapse:syn52364558>. (Note, however, that the positions given in this linked file are on the GRCh38 build, while the UK Biobank genotype data are on the GRCh37 build.)
+3. **Variants located near the gene coding for the given protein.** Since most of the genetic heritability of expression is explained by *cis*-QTLs, the two previous approaches can be restricted to variants that act locally on the gene coding for the given protein. For example, one may wish to include variants within a 1 Mb window of the gene boundaries. If you're using the UK Biobank plasma proteomics (UKB-PPP) data, you can find the start and end positions for all genes encoding the assayed proteins at <https://www.synapse.org/#!Synapse:syn52364558>. (Note, however, that the positions given in that file are on the GRCh38 build, while the UK Biobank genotype data are on the GRCh37 build.)
 
-We provide the script `map_pqtls.sh` for computing variant-protein associations for all proteins in the UKB-PPP dataset. The resulting summary statistics are saved to protein-specific, tab-separated files named `pqtls/<GENE_NAME>.sumstats.tsv` with one line per variant and the following six columns: #CHROM, POS, ID, A1, BETA, P. These summary statistics can then be filtered to select predictors for the expression imputation models according to either the strength of their correlation (BETA) or the significance of their association (P).
+We provide the shell script `utils/map_pqtls.sh` for computing variant-protein associations for all proteins in the UKB-PPP dataset, and it can be easily modified for use with other datasets as well. The resulting summary statistics are saved to protein-specific, tab-separated files named `pqtls/<GENE_NAME>.sumstats.tsv` with one line per variant and the following six columns: #CHROM, POS, ID, A1, BETA, P. These summary statistics can then be filtered to select predictors for the expression imputation models according to either the strength of their correlation (BETA) or the significance of their association (P).
 
 # Appendix: Data preparation and QC
 
@@ -64,7 +84,7 @@ We used summary statistics data from the Alzheimer's disease GWAS published by B
 
 ## Data processing script
 
-Run the shell script `util/preprocess_ukb.sh` from within the main COWAS folder to process the downloaded data. This script will perform the following data wrangling and quality control steps:
+Run the shell script `qc/preprocess_ukb.sh` from within the main COWAS folder to process the downloaded data. This script will perform the following data wrangling and quality control steps:
 
 1. Create the file `pairs/all_protein_pairs.tsv` listing all possible pairs of proteins that have data available, with one pair per row.
 2. Filter the main dataset to obtain a set of high-quality, unrelated, White British samples with per-sample genotyping rate > 99%. Filter the proteomics data to obtain the set of samples assessed at the initial visit. Then subset the genotype data, proteomics data, and covariate data to a common set of samples.

@@ -9,9 +9,15 @@
 #SBATCH --mail-user=malak039@umn.edu
 #SBATCH -o logs/%j.out
 
-# A file that lists pairs of genes or proteins for which to perform COWAS
-# This should be a text file with one tab-separated pair of gene/protein names per line
+# A file that lists pairs of genes or proteins for which to perform COWAS.
+# This should be a text file with one tab-separated pair of gene/protein names per line.
 PAIRS=pairs/all_protein_pairs.tsv
+
+# File name of the individual-level genotype data to use (in PLINK 2.0 format)
+GENOTYPES=genotypes_subset_for_AD
+
+# File name of the GWAS summary dataset to use
+GWAS=Bellenguez_2022_AD_GWAS.tsv
 
 # File name for COWAS results
 OUT_FILE=all_proteins.tsv
@@ -19,9 +25,9 @@ OUT_FILE=all_proteins.tsv
 # Directory for storing the COWAS output file
 OUT_DIR=output
 
-# The type of model to fit
-# Valid options are stepwise, ridge, lasso, and elastic_net
-MODEL=stepwise
+# The type of model to fit.
+# Valid options are stepwise, ridge, lasso, and elastic_net.
+MODEL=elastic_net
 
 # Number of cores to use for parallelization
 CORES=32
@@ -32,6 +38,8 @@ R2_THRESHOLD=0.001
 
 printf "Runtime parameters:\n"
 printf "PAIRS = ${PAIRS}\n"
+printf "GENOTYPES = ${GENOTYPES}\n"
+printf "GWAS = ${GWAS}\n"
 printf "OUT_FILE = ${OUT_FILE}\n"
 printf "OUT_DIR = ${OUT_DIR}\n"
 printf "MODEL = ${MODEL}\n"
@@ -84,7 +92,7 @@ mkdir ${COWAS_TEMP}
 
 # Extract pre-screened variants for each protein, then create a pvar file listing them
 # and export their genotypes to a text file with 0..2 coding
-plink2 --pfile data_cleaned/ukb_filtered \
+plink2 --pfile data_cleaned/${GENOTYPES} \
        --silent \
        --threads ${CORES} \
        --extract predictors/${PROTEIN_A}.variants.txt \
@@ -92,7 +100,7 @@ plink2 --pfile data_cleaned/ukb_filtered \
        --export-allele data_cleaned/ukb_alt_alleles.tsv \
        --make-just-pvar cols=maybecm \
        --out ${COWAS_TEMP}/${PROTEIN_A}
-plink2 --pfile data_cleaned/ukb_filtered \
+plink2 --pfile data_cleaned/${GENOTYPES} \
        --silent \
        --threads ${CORES} \
        --extract predictors/${PROTEIN_B}.variants.txt \
@@ -111,8 +119,8 @@ fi
 cut -f 2,7- ${COWAS_TEMP}/${PROTEIN_A}.raw > ${COWAS_TEMP}/${PROTEIN_A}.gmatrix
 cut -f 2,7- ${COWAS_TEMP}/${PROTEIN_B}.raw > ${COWAS_TEMP}/${PROTEIN_B}.gmatrix
 
-# Create a single pvar file with variants for both proteins
-# This will duplicate variants that appear in both files, but cowas.R takes care of that later
+# Create a single pvar file with variants for both proteins.
+# This will duplicate variants that appear in both files, but cowas.R takes care of that later.
 cat ${COWAS_TEMP}/${PROTEIN_A}.pvar ${COWAS_TEMP}/${PROTEIN_B}.pvar > ${COWAS_TEMP}/both.snps
 
 # And this is where the magic happens!
@@ -123,7 +131,7 @@ cat ${COWAS_TEMP}/${PROTEIN_A}.pvar ${COWAS_TEMP}/${PROTEIN_B}.pvar > ${COWAS_TE
           --snps ${COWAS_TEMP}/both.snps \
           --expression data_cleaned/proteins.tsv \
           --covariates data_cleaned/covariates.tsv \
-          --gwas data_cleaned/Bellenguez_2022_AD_gwas.tsv \
+          --gwas data_cleaned/${GWAS} \
           --out ${OUT_DIR}/${OUT_FILE} \
           --model ${MODEL} \
           --cores ${CORES} \
