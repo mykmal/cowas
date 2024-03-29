@@ -394,9 +394,9 @@ if (opt$model == "stepwise") {
 set(x = expression, j = "coexpression", value = (expression[[opt$protein_a]] - imputed_full_a) * (expression[[opt$protein_b]] - imputed_full_b))
 
 # Compute R^2 on the test set
-r2_a <- summary(stats::lm(expression[test_indices, ][[opt$protein_a]] ~ imputed_test_a))$adj.r.squared
-r2_b <- summary(stats::lm(expression[test_indices, ][[opt$protein_b]] ~ imputed_test_b))$adj.r.squared
-r2_co <- summary(stats::lm(expression[test_indices, ][["coexpression"]] ~ imputed_test_co))$adj.r.squared
+r2_a <- stats::cor(expression[test_indices, ][[opt$protein_a]], imputed_test_a)^2
+r2_b <- stats::cor(expression[test_indices, ][[opt$protein_b]], imputed_test_b)^2
+r2_co <- stats::cor(expression[test_indices, ][["coexpression"]], imputed_test_co)^2
 
 # Check that all three models pass the R^2 threshold
 if (r2_a < opt$r2_threshold || r2_b < opt$r2_threshold || r2_co < opt$r2_threshold) {
