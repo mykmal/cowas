@@ -29,6 +29,10 @@ ad_gwas[flip == TRUE, `:=` (effect_allele = effect_allele_flipped,
                             other_allele = other_allele_flipped)]
 ad_gwas[, c("REF", "ALT", "flip", "effect_allele_flipped", "other_allele_flipped") := NULL]
 
+# Create a column for the total sample size
+ad_gwas[, n_samples := as.numeric(n_cases) + as.numeric(n_controls)]
+ad_gwas[, c("n_cases", "n_controls") := NULL]
+
 # The final list of variants that will be used for AD analysis
 ad_gwas <- na.omit(ad_gwas)
 ad_variants_keep <- ad_gwas$variant_id

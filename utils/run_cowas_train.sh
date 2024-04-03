@@ -86,7 +86,7 @@ continue
 fi
 
 # Create folder for storing temporary files
-COWAS_TEMP=${OUT_DIR}/TEMP_${PROTEIN_A}_${PROTEIN_B}
+COWAS_TEMP=${OUT_DIR}/TEMP-${PROTEIN_A}-${PROTEIN_B}
 mkdir ${COWAS_TEMP}
 
 # Extract pre-screened variants for each protein and export their genotypes to a text file with 0..2 coding

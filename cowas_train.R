@@ -45,7 +45,7 @@ option_list <- list(
     c("--out_folder"),
     default = "cowas_weights",
     help = "Path to a folder where COWAS weights will be stored. A TSV file with performance
-                metrics for each model will also be saved here. [default `%default`]"
+                metrics for each model will also be saved here. [default: `%default`]"
   ),
   make_option(
     c("--model"),
@@ -54,14 +54,14 @@ option_list <- list(
                 both-direction stepwise variable selection by AIC), `ridge` (linear regression
                 with an L2 penalty), `lasso` (linear regression with an L1 penalty), and
                 `elastic_net` (linear regression with a linear combination of the L1 and L2
-                penalties). [default `%default`]"
+                penalties). [default: `%default`]"
   ),
   make_option(
     c("--cores"),
     default = "1",
     type = "integer",
     help = "Number of cores to use for parallelization. The default value disables parallel
-                computation. [default `%default`]"
+                computation. [default: `%default`]"
   ),
   make_option(
     c("--r2_threshold"),
@@ -69,7 +69,7 @@ option_list <- list(
     type = "double",
     help = "R^2 threshold for expression and co-expression prediction models. COWAS model
                 weights will only be saved if all three models have a predictive R^2 value
-                (calculated on a held-out test set) above this threshold. [default `%default`]"
+                (calculated on a held-out test set) above this threshold. [default: `%default`]"
   ),
   make_option(
     c("--rank_normalize"),
@@ -77,14 +77,14 @@ option_list <- list(
     default = TRUE,
     help = "Perform a rank-based inverse-normal transformation (aka quantile normalization)
                 on the expression phenotypes before fitting models. If FALSE, expression values
-                will simply be centered and scaled. [default `%default`]"
+                will simply be centered and scaled. [default: `%default`]"
   )
 )
 
 opt <- parse_args(OptionParser(option_list = option_list))
 
 if (anyNA(opt[-6])) {
-  stop("Some required parameters are missing. Run `cowas.R --help` for usage info.")
+  stop("Some required parameters are missing. Run `cowas_train.R --help` for usage info.")
 }
 
 # Load the glmnet package if penalized regression is requested
@@ -407,7 +407,7 @@ if (r2_a < opt$r2_threshold || r2_b < opt$r2_threshold || r2_co < opt$r2_thresho
 
 # Weights for all three models are saved within a single list in an RDS file
 weights_final <- full_output[c("weights_a", "weights_b", "weights_co")]
-saveRDS(weights_final, file = paste0(opt$out_folder, "/", opt$protein_a, "_", opt$protein_b, ".weights.rds"))
+saveRDS(weights_final, file = paste0(opt$out_folder, "/", opt$protein_a, "-", opt$protein_b, ".weights.rds"))
 
 # Gather performance metrics
 metrics <- c(opt$protein_a, opt$protein_b, n_expression,
