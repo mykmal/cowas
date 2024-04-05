@@ -15,207 +15,141 @@ option_list <- list(
     help = "Name (or identifier) of the second protein in the co-expression pair. [required]"
   ),
   make_option(
-    c("--genotypes_a"),
-    help = "Path to a genotype matrix of variants to use as predictors for the first protein.
-                This should be a tab-separated file with a header line followed by one line
-                per individual, containing individual IDs in the first column and variants
-                with effect allele dosages coded as 0..2 in the remaining columns. [required]"
-  ),
-  make_option(
-    c("--genotypes_b"),
-    help = "Path to a genotype matrix of variants to use as predictors for the second protein,
-                formatted the same as --genotypes_a. [required]"
-  ),
-  make_option(
-    c("--snps"),
-    help = "Path to a table specifying the reference and effect alleles for each variant present
-                in --genotypes_a and --genotypes_b. This should be a tab-separated file with a
-                header line followed by one line per variant, containing the following three
-                columns: ID, REF, ALT. Other columns are allowed but will be ignored. [required]"
-  ),
-  make_option(
-    c("--expression"),
-    help = "Path to a matrix of expression levels for both proteins in the co-expression pair.
-                This should be a tab-separated file with a header line followed by one line
-                per individual, containing individual IDs in the first column and protein
-                expression values in the remaining columns. [required]"
-  ),
-  make_option(
-    c("--covariates"),
-    help = "Path to a matrix of expression covariates. If specified, this should be a
-                tab-separated file with a header line followed by one line per individual,
-                containing individual IDs in the first column and covariates in the remaining
-                columns. Note that categorical variables need to already be coded as dummy
-                variables. [optional]"
-  ),
-  make_option(
     c("--gwas"),
     help = "Path to a GWAS summary statistics file for the disease of interest. This should be
                 a tab-separated file with a header line followed by one line per variant,
                 containing the following columns: variant_id, effect_allele, other_allele,
-                n_cases, n_controls, z_score. Other columns are allowed but will be ignored.
-                [required]"
+                z_score, n_samples. Other columns are allowed but will be ignored. Note that
+                variant IDs must be consistent with those used in COWAS weights and in the LD
+                reference. (In our provided weights, variants are denoted by rsID.) [required]"
+  ),
+  make_option(
+    c("--weights"),
+    default = "cowas_weights",
+    help = "Path to a folder containing pre-trained COWAS weights in RDS format, as saved by
+                cowas_train.R. [default: `%default`]"
+  ),
+  make_option(
+    c("--alleles"),
+    help = "Path to a table specifying the reference and effect alleles for each variant present
+                in the pre-trained COWAS models. This should be a tab-separated file with a
+                header line followed by one line per variant, containing the following three
+                columns: ID, REF, ALT. Other columns are allowed but will be ignored. [required]"
+  ),
+  make_option(
+    c("--ld_reference"),
+    help = "Path to an individual-level genotype matrix to use as a linkage disequilibrium (LD)
+                reference panel. This should be a tab-separated file with individuals in rows and
+                variants in columns, beginning with a header line. Importantly, the coding alleles
+                here must match the COWAS model effect alleles. This can be ensured by creating the
+                LD reference file using PLINK's `export A` command with the `export-allele` option
+                set to the ALT alleles listed in --alleles. Moreover, variant IDs in the header must
+                be consistent with those used in COWAS weights and in the LD reference. (In our
+                provided weights, variants are denoted by rsID.) [required]"
   ),
   make_option(
     c("--out"),
-    default = "output/results.tsv",
+    default = "cowas_results.tsv",
     help = "Path to a file where COWAS results will be stored. If the specified file already
-                exists, a new line of results will be appended to its end. [default `%default`]"
-  ),
-  make_option(
-    c("--model"),
-    default = "stepwise",
-    help = "The type of model to fit. Valid options are `stepwise` (linear regression with
-                both-direction stepwise variable selection by AIC), `ridge` (linear regression
-                with an L2 penalty), `lasso` (linear regression with an L1 penalty), and
-                `elastic_net` (linear regression with a linear combination of the L1 and L2
-                penalties). [default `%default`]"
+                exists, a new line of results will be appended to its end. [default: `%default`]"
   ),
   make_option(
     c("--cores"),
     default = "1",
     type = "integer",
-    help = "Number of cores to use for parallelization. The default value disables parallel
-                computation. [default `%default`]"
-  ),
-  make_option(
-    c("--r2_threshold"),
-    default = 0.001,
-    type = "double",
-    help = "R^2 threshold for expression and co-expression prediction models. The COWAS
-                association test will only be performed if all three models have a predictive
-                R^2 value (calculated on a held-out test set) above this threshold.
-                [default `%default`]"
-  ),
-  make_option(
-    c("--rank_normalize"),
-    action = "store_true",
-    default = TRUE,
-    help = "Perform a rank-based inverse-normal transformation (aka quantile normalization)
-                on the expression phenotypes before fitting models. If FALSE, expression values
-                will simply be centered and scaled. [default `%default`]"
+    help = "Number of cores to use for parallelization. The default value disables multi-threaded
+                computation. [default: `%default`]"
   )
 )
 
 opt <- parse_args(OptionParser(option_list = option_list))
 
-if (anyNA(opt[-7])) {
+if (anyNA(opt)) {
   stop("Some required parameters are missing. Run `cowas.R --help` for usage info.")
 }
 
-# Load the glmnet package if penalized regression is requested
-if (opt$model == "ridge" || opt$model == "lasso" || opt$model == "elastic_net") {
-  suppressMessages(library(glmnet))
-}
+# Set the requested number of cores
+setDTthreads(threads = opt$cores, restore_after_fork = TRUE)
 
-# Enable parallel computation if requested
-if (opt$cores > 1L) {
-  suppressMessages(library(doMC))
-  registerDoMC(cores = opt$cores)
-  
-  setDTthreads(threads = opt$cores, restore_after_fork = TRUE)
-  use_cores <- TRUE
-} else {
-  use_cores <- FALSE
-}
+# Load GWAS data, model weights, allele file, and LD reference data -------------------------------
 
-# Load genotype and expression data, normalize, and adjust for covariates -------------------------
+# Read GWAS summary statistics
+gwas <- fread(file = opt$gwas, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE,
+              select = c("variant_id", "effect_allele", "other_allele", "z_score", "n_samples"))
+gwas <- na.omit(gwas)
 
-genotypes_a <- fread(file = opt$genotypes_a, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE)
-genotypes_b <- fread(file = opt$genotypes_b, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE)
-expression <- fread(file = opt$expression, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE,
-                    select = c("IID", opt$protein_a, opt$protein_b))
+# Read pre-trained model weights
+weights <- readRDS(paste0(opt$weights, "/", opt$protein_a, "-", opt$protein_b, ".weights.rds"))
+weights_a <- weights$weights_a
+weights_b <- weights$weights_b
+weights_co <- weights$weights_co
+rm(weights)
+
+# Read allele list
+snps <- fread(file = opt$alleles, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE,
+              select = c("ID", "REF", "ALT"))
+
+# Read LD reference genotypes
+genotypes <- fread(file = opt$ld_reference, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE)
 
 # Remove allele codes after each rsid, in case files were created with `plink2 --recode A`
-setnames(genotypes_a, gsub(pattern = "_.*", replacement = "", x = names(genotypes_a)))
-setnames(genotypes_b, gsub(pattern = "_.*", replacement = "", x = names(genotypes_b)))
+setnames(genotypes, gsub(pattern = "_.*", replacement = "", x = names(genotypes)))
 
-# Create a data table with all predictor variants for both proteins
-genotypes <- cbind(genotypes_a, genotypes_b[, !"IID"])
-duplicated_variants <- which(duplicated(names(genotypes)))
-suppressWarnings(genotypes[, (duplicated_variants) := NULL])
+# Subset all data sources to a common set of variants ---------------------------------------------
 
-# Free up memory
-variants_a <- names(genotypes_a)[-1]
-variants_b <- names(genotypes_b)[-1]
-rm(genotypes_a, genotypes_b)
+# Variants included in at least one model
+model_variants <- unique(c(names(weights_a),
+                           names(weights_b),
+                           names(weights_co)))
 
-# Subset to the common set of individuals with no missing values
-expression <- na.omit(expression)
-if (is.na(opt$covariates)) {
-  individuals <- intersect(genotypes$IID, expression$IID)
-  genotypes <- genotypes[IID %in% individuals, ]
-  expression <- expression[IID %in% individuals, ]
-} else {
-  covariates <- fread(file = opt$covariates, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE)
-  covariates <- na.omit(covariates)
-  
-  individuals <- Reduce(intersect,
-                        list(genotypes$IID,
-                             expression$IID,
-                             covariates$IID))
-  genotypes <- genotypes[IID %in% individuals, ]
-  expression <- expression[IID %in% individuals, ]
-  covariates <- covariates[IID %in% individuals, ]
-  
-  # Center and scale each covariate
-  for (column in names(covariates)[-1]) {
-    set(x = covariates, j = column, value = scale(covariates[[column]]))
-    
-    # Remove the covariate if it has NAs or is constant for this subset of individuals
-    if (anyNA(covariates[[column]]) || var(covariates[[column]]) <= 0) {
-      covariates[, (column) := NULL]
-    }
-  }
-}
+# Variants common to GWAS, models, allele list, and LD reference
+common_variants <- Reduce(intersect,
+                          list(gwas$variant_id,
+                               model_variants,
+                               snps$ID,
+                               names(genotypes)))
 
-# Save the expression reference panel sample size
-n_expression <- nrow(expression)
+# Subset the GWAS
+gwas <- gwas[variant_id %in% common_variants, ]
 
-# Process each of the two proteins
-for (protein in c(opt$protein_a, opt$protein_b)) {
-  
-  # Perform quantile normalization if requested
-  if (opt$rank_normalize == TRUE) {
-    # This offset corresponds to the commonly-used Blom transform
-    offset <- 0.375
-    
-    # Compute the rank of each observation
-    ranks <- rank(expression[[protein]], ties.method = "average")
-    
-    # Perform the transformation
-    expression[, (protein) := stats::qnorm((ranks - offset) / (n_expression - 2 * offset + 1))]
-  } else {
-    # Otherwise, simply center and scale
-    set(x = expression, j = protein, value = scale(expression[[protein]]))
-  }
-  
-  # If covariates were provided, regress them out
-  if (!is.na(opt$covariates)) {
-    regression <- stats::lm(expression[[protein]] ~ ., data = covariates[, !"IID"])
-    expression[, (protein) := regression$residuals]
-  }
-  
-  # Check if the processed expression levels are constant or have NAs
-  if (anyNA(expression[[protein]]) || var(expression[[protein]]) <= 0) {
-    stop("Expression of ", protein, " is either constant or NA after normalization and/or covariate adjustment. Skipping the pair ", opt$protein_a, " - ", opt$protein_b, ".")
-  }
-}
+# Subset model weights
+weights_a <- weights_a[intersect(common_variants, names(weights_a))]
+weights_b <- weights_b[intersect(common_variants, names(weights_b))]
+weights_co <- weights_co[intersect(common_variants, names(weights_co))]
 
-# Load variant data and harmonize it with genotype data -------------------------------------------
+# Subset the allele list
+snps <- snps[ID %in% common_variants, ]
 
-# Read variant list and remove duplicates
-snps <- fread(file = opt$snps, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE,
-              select = c("ID", "REF", "ALT"))
-snps <- snps[!duplicated(ID), ]
-
-# Subset genotypes to those variants present in the variant list
-keep <- c(1, which(names(genotypes) %in% snps$ID))
+# Subset LD reference genotypes
+keep <- which(names(genotypes) %in% common_variants)
 genotypes <- genotypes[, ..keep]
+
+# Flip GWAS alleles -------------------------------------------------------------------------------
+
+gwas <- merge(gwas, snps, by.x = "variant_id", by.y = "ID", sort = FALSE)
+
+# Remove variants with mismatching alleles
+matches <- gwas[(effect_allele == ALT & other_allele == REF) | (effect_allele == REF & other_allele == ALT), ]$variant_id
+if (length(matches) < nrow(gwas)) {
+  gwas <- gwas[variant_id %in% matches, ]
+  
+  weights_a <- weights_a[intersect(matches, names(weights_a))]
+  weights_b <- weights_b[intersect(matches, names(weights_b))]
+  weights_co <- weights_co[intersect(matches, names(weights_co))]
+  
+  keep <- which(names(genotypes) %in% matches)
+  genotypes <- genotypes[, ..keep]
+}
+
+# Flip the GWAS z-scores when necessary
+gwas[effect_allele != ALT, z_score := -1 * as.numeric(z_score)]
+gwas[, c("effect_allele", "other_allele", "REF", "ALT") := NULL]
+
+# Compute an LD reference matrix from normalized genotypes ----------------------------------------
 
 # Fill in missing calls with the mode for each variant
 # This is a reasonable imputation method when the missingness rate is very low
-for (rsid in names(genotypes)[-1]) {
+for (rsid in names(genotypes)) {
   
   mode <- names(which.max(table(genotypes[[rsid]])))
   set(x = genotypes, i = which(is.na(genotypes[[rsid]])), j = rsid, value = mode)
@@ -224,231 +158,23 @@ for (rsid in names(genotypes)[-1]) {
   set(x = genotypes, j = rsid, value = scale(genotypes[[rsid]]))
   if (anyNA(genotypes[[rsid]]) || var(genotypes[[rsid]]) <= 0) {
     genotypes[, (rsid) := NULL]
+    gwas <- gwas[variant_id != rsid, ]
+    weights_a <- weights_a[names(weights_a) != rsid]
+    weights_b <- weights_b[names(weights_b) != rsid]
+    weights_co <- weights_co[names(weights_co) != rsid]
   }
 }
 
-# Update the variant list
-snps <- snps[ID %in% names(genotypes)[-1], ]
-
-# Load GWAS data and flip alleles -----------------------------------------------------------------
-
-# Load GWAS summary statistics and merge them with the variant list
-gwas <- fread(file = opt$gwas, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE,
-              select = c("variant_id", "effect_allele", "other_allele", "n_cases", "n_controls", "z_score"))
-gwas <- na.omit(gwas)
-gwas <- merge(gwas, snps, by.x = "variant_id", by.y = "ID", sort = FALSE)
-
-# Flip the GWAS summary statistics when necessary
-gwas <- gwas[(effect_allele == ALT & other_allele == REF) | (effect_allele == REF & other_allele == ALT), ]
-gwas[effect_allele != ALT, flip := TRUE]
-gwas[flip == TRUE, `:=` (effect_allele_flipped = other_allele,
-                         other_allele_flipped = effect_allele,
-                         z_score = -1 * as.numeric(z_score))]
-gwas[flip == TRUE, `:=` (effect_allele = effect_allele_flipped,
-                         other_allele = other_allele_flipped)]
-gwas[, c("REF", "ALT", "flip", "effect_allele_flipped", "other_allele_flipped") := NULL]
-
-# Remove any genotyped variants not present in the gwas
-keep <- c(1, which(names(genotypes) %in% gwas$variant_id))
-genotypes <- genotypes[, ..keep]
-
-# Make sure at least two variants remain for each protein
-variants_a <- variants_a[which(variants_a %in% names(genotypes))]
-variants_b <- variants_b[which(variants_b %in% names(genotypes))]
-if (length(variants_a) < 2 || length(variants_b) < 2) {
-  stop("Fewer than two variants available for prediction. Skipping the pair ", opt$protein_a, " - ", opt$protein_b, ".")
+# Make sure at least one variant remains in each model
+if (length(weights_a) < 1 || length(weights_b) < 1 || length(weights_co) < 1) {
+  stop("No variants remain in the intersection of model weights, GWAS effects, and the LD reference. Skipping the pair ", opt$protein_a, " - ", opt$protein_b, ".")
 }
-
-# Define prediction models ------------------------------------------------------------------------
-
-TrainStepwise <- function(z_a, z_b, z_both, x) {
-  
-  # lm() is easier to use with outcome and predictor variables in one data table
-  data_a <- cbind(x[, 1], z_a)
-  setnames(data_a, 1, "x_a")
-  data_b <- cbind(x[, 2], z_b)
-  setnames(data_b, 1, "x_b")
-  
-  # Free up memory
-  rm(z_a, z_b, x)
-  
-  # The full model formulas
-  formula_full_a <- as.formula(paste0("x_a ~ ", paste0(names(data_a)[-1], collapse = " + ")))
-  formula_full_b <- as.formula(paste0("x_b ~ ", paste0(names(data_b)[-1], collapse = " + ")))
-  
-  # Fit models for each protein
-  lm_null_a <- stats::lm(x_a ~ 1, data = data_a)
-  lm_null_b <- stats::lm(x_b ~ 1, data = data_b)
-  step_a <- stats::step(lm_null_a, scope = formula_full_a, direction = "both", trace = 0)
-  step_b <- stats::step(lm_null_b, scope = formula_full_b, direction = "both", trace = 0)
-  
-  # Compute the conditional co-expression
-  pred_a <- predict(object = step_a, newdata = data_a, type = "response")
-  pred_b <- predict(object = step_b, newdata = data_b, type = "response")
-  x_co <- (data_a$x_a - pred_a) * (data_b$x_b - pred_b)
-  
-  # Create a data table containing co-expression values and all variants
-  data_co <- cbind(x_co, z_both)
-  rm(pred_a, pred_b, x_co, z_both)
-  
-  # Train a model to predict conditional co-expression
-  formula_full_co <- as.formula(paste0("x_co ~ ", paste0(names(data_co)[-1], collapse = " + ")))
-  lm_null_co <- stats::lm(x_co ~ 1, data = data_co)
-  step_co <- stats::step(lm_null_co, scope = formula_full_co, direction = "both", trace = 0)
-  
-  # Save fitted model weights
-  # The intercept is ignored because it will be numerically zero
-  model_a_weights <- coef(step_a)[-1]
-  model_b_weights <- coef(step_b)[-1]
-  model_co_weights <- coef(step_co)[-1]
-  
-  return(list(weights_a = model_a_weights, weights_b = model_b_weights, weights_co = model_co_weights,
-              model_a = step_a, model_b = step_b, model_co = step_co))
-}
-
-TrainGlmnet <- function(z_a, z_b, z_both, x, alpha) {
-  
-  # The glmnet package only accepts matrices and vectors as input
-  z_a <- as.matrix(z_a)
-  z_b <- as.matrix(z_b)
-  z_both <- as.matrix(z_both)
-  x <- as.matrix(x)
-  
-  # Fit an elastic net model for protein_a
-  model_a <- cv.glmnet(x = z_a, y = x[, 1],
-                       family = "gaussian", type.measure = "mse",
-                       alpha = alpha, nfolds = 10,
-                       standardize = FALSE, intercept = TRUE,
-                       parallel = use_cores)
-  
-  # Fit an elastic net model for protein_b
-  model_b <- cv.glmnet(x = z_b, y = x[, 2],
-                       family = "gaussian", type.measure = "mse",
-                       alpha = alpha, nfolds = 10,
-                       standardize = FALSE, intercept = TRUE,
-                       parallel = use_cores)
-  
-  # Compute the conditional co-expression
-  pred_a <- predict(object = model_a, newx = z_a, s = "lambda.min", type = "response")
-  pred_b <- predict(object = model_b, newx = z_b, s = "lambda.min", type = "response")
-  coex <- (x[, 1] - pred_a) * (x[, 2] - pred_b)
-  
-  # Fit an elastic net model for the conditional co-expression of protein_a and protein_b
-  model_co <- cv.glmnet(x = z_both, y = coex,
-                        family = "gaussian", type.measure = "mse",
-                        alpha = alpha, nfolds = 10,
-                        standardize = FALSE, intercept = TRUE,
-                        parallel = use_cores)
-  
-  # Save model weights
-  # The intercept is ignored because it will be numerically zero
-  model_a_weights <- coef(model_a, s = "lambda.min")[-1, ]
-  model_b_weights <- coef(model_b, s = "lambda.min")[-1, ]
-  model_co_weights <- coef(model_co, s = "lambda.min")[-1, ]
-  
-  return(list(weights_a = model_a_weights, weights_b = model_b_weights, weights_co = model_co_weights,
-              model_a = model_a, model_b = model_b, model_co = model_co))
-}
-
-# Train and evaluate the prediction models --------------------------------------------------------
-
-# Match up the genotype and expression data by sample ID, since we need to remove the IID column before model training
-expression <- expression[match(genotypes$IID, IID), ]
-expression[, IID := NULL]
-genotypes[, IID := NULL]
-
-# Extract protein-specific variants from the joint genotype matrix
-genotypes_a <- genotypes[, ..variants_a]
-genotypes_b <- genotypes[, ..variants_b]
-
-# Split data into training and test subsets
-test_indices <- sample(x = n_expression, size = floor(0.2 * n_expression))
-
-# Train the requested model type on the training set
-if (opt$model == "stepwise") {
-  training_output <- TrainStepwise(genotypes_a[!test_indices, ], genotypes_b[!test_indices, ], genotypes[!test_indices, ],
-                                   expression[!test_indices, ])
-} else if (opt$model == "ridge") {
-  training_output <- TrainGlmnet(genotypes_a[!test_indices, ], genotypes_b[!test_indices, ], genotypes[!test_indices, ],
-                                 expression[!test_indices, ], alpha = 0)
-} else if (opt$model == "lasso") {
-  training_output <- TrainGlmnet(genotypes_a[!test_indices, ], genotypes_b[!test_indices, ], genotypes[!test_indices, ],
-                                 expression[!test_indices, ], alpha = 1)
-} else if (opt$model == "elastic_net") {
-  training_output <- TrainGlmnet(genotypes_a[!test_indices, ], genotypes_b[!test_indices, ], genotypes[!test_indices, ],
-                                 expression[!test_indices, ], alpha = 0.5)
-}
-
-# Check that all three models have at least some variation in weights among variants
-if (var(training_output$weights_a) <= 0 || var(training_output$weights_b) <= 0 || var(training_output$weights_co) <= 0) {
-  stop("At least one of the models in the pair ", opt$protein_a, " - ", opt$protein_b, " has no nonzero weights. This pair will be skipped.")
-}
-
-# Get predicted values on the test set
-if (opt$model == "stepwise") {
-  imputed_test_a <- predict(object = training_output$model_a, newdata = genotypes_a[test_indices, ],
-                            type = "response")
-  imputed_test_b <- predict(object = training_output$model_b, newdata = genotypes_b[test_indices, ],
-                            type = "response")
-  imputed_test_co <- predict(object = training_output$model_co, newdata = genotypes[test_indices, ],
-                             type = "response")
-} else {
-  imputed_test_a <- predict(object = training_output$model_a, newx = as.matrix(genotypes_a[test_indices, ]),
-                            s = "lambda.min", type = "response")
-  imputed_test_b <- predict(object = training_output$model_b, newx = as.matrix(genotypes_b[test_indices, ]),
-                            s = "lambda.min", type = "response")
-  imputed_test_co <- predict(object = training_output$model_co, newx = as.matrix(genotypes[test_indices, ]),
-                             s = "lambda.min", type = "response")
-}
-
-# Fit full-sample models
-rm(training_output)
-if (opt$model == "stepwise") {
-  full_output <- TrainStepwise(genotypes_a, genotypes_b, genotypes,
-                               expression)
-} else if (opt$model == "ridge") {
-  full_output <- TrainGlmnet(genotypes_a, genotypes_b, genotypes,
-                             expression, alpha = 0)
-} else if (opt$model == "lasso") {
-  full_output <- TrainGlmnet(genotypes_a, genotypes_b, genotypes,
-                             expression, alpha = 1)
-} else if (opt$model == "elastic_net") {
-  full_output <- TrainGlmnet(genotypes_a, genotypes_b, genotypes,
-                             expression, alpha = 0.5)
-}
-
-# Get predicted values on the full data set, to use in computing full-sample conditional co-expression
-if (opt$model == "stepwise") {
-  imputed_full_a <- predict(object = full_output$model_a, newdata = genotypes_a,
-                            type = "response")
-  imputed_full_b <- predict(object = full_output$model_b, newdata = genotypes_b,
-                            type = "response")
-} else {
-  imputed_full_a <- predict(object = full_output$model_a, newx = as.matrix(genotypes_a),
-                            s = "lambda.min", type = "response")
-  imputed_full_b <- predict(object = full_output$model_b, newx = as.matrix(genotypes_b),
-                            s = "lambda.min", type = "response")
-}
-
-# Compute the conditional co-expression between the two proteins using full-sample model weights
-set(x = expression, j = "coexpression", value = (expression[[opt$protein_a]] - imputed_full_a) * (expression[[opt$protein_b]] - imputed_full_b))
-
-# Compute R^2 on the test set
-# R^2 = 1 - MSE / Var(y) = 1 - MSE
-# because here Var(y) = 1
-r2_a <- 1 - mean((expression[test_indices, ][[opt$protein_a]] - imputed_test_a)^2)
-r2_b <- 1 - mean((expression[test_indices, ][[opt$protein_b]] - imputed_test_b)^2)
-r2_co <- 1 - mean((expression[test_indices, ][["coexpression"]] - imputed_test_co)^2)
-
-# Check that all three models pass the R^2 threshold
-if (r2_a < opt$r2_threshold || r2_b < opt$r2_threshold || r2_co < opt$r2_threshold) {
-  stop("At least one of the models in the pair ", opt$protein_a, " - ", opt$protein_b, " fails the R^2 threshold. This pair will be skipped.")
-}
-
-# Test for association between imputed co-expression and disease ----------------------------------
 
 # Approximate the GWAS sample size
-n_gwas <- median(gwas$n_cases) + median(gwas$n_controls)
+n_gwas <- median(gwas$n_samples)
+
+# Save the LD reference sample size
+n_reference <- nrow(genotypes)
 
 # Compute the correlation between variants and disease
 genotype_disease_correlation <- gwas$z_score / sqrt(n_gwas - 2 + gwas$z_score^2)
@@ -458,10 +184,12 @@ genotypes <- as.matrix(genotypes)
 genotype_disease_correlation <- as.matrix(genotype_disease_correlation)
 
 # Compute the LD matrix
-ld_matrix <- t(genotypes) %*% genotypes / n_expression
+ld_matrix <- t(genotypes) %*% genotypes / n_reference
 
-# Formulas for computing the stage 2 effect size and its variance
-stage2 <- function(qtl_weights, n_features) {
+# Compute association between imputed co-expression and disease -----------------------------------
+
+# Formulas for computing the COWAS effect sizes and their variances
+compute_effect_size <- function(qtl_weights, n_features) {
   # This formula is derived from ordinary least squares (OLS) regression
   product <- t(qtl_weights) %*% ld_matrix %*% qtl_weights
   
@@ -490,21 +218,23 @@ stage2 <- function(qtl_weights, n_features) {
 # Fill in zeros for variants without any weights so that dimensions match across all models
 weights_padded_a <- weights_padded_b <- weights_padded_co <- numeric(ncol(genotypes))
 names(weights_padded_a) <- names(weights_padded_b) <- names(weights_padded_co) <- colnames(genotypes)
-weights_padded_a[names(full_output$weights_a)] <- full_output$weights_a
-weights_padded_b[names(full_output$weights_b)] <- full_output$weights_b
-weights_padded_co[names(full_output$weights_co)] <- full_output$weights_co
+weights_padded_a[names(weights_a)] <- weights_a
+weights_padded_b[names(weights_b)] <- weights_b
+weights_padded_co[names(weights_co)] <- weights_co
 
 # Save the number of variants with nonzero weights in each model
-n_nonzero_a <- sum(full_output$weights_a != 0)
-n_nonzero_b <- sum(full_output$weights_b != 0)
-n_nonzero_co <- sum(full_output$weights_co != 0)
+n_nonzero_a <- sum(weights_a != 0)
+n_nonzero_b <- sum(weights_b != 0)
+n_nonzero_co <- sum(weights_co != 0)
 
 # Compute effect sizes and variances for each model
-stage2_a <- stage2(as.matrix(weights_padded_a), n_nonzero_a)
-stage2_b <- stage2(as.matrix(weights_padded_b), n_nonzero_b)
-stage2_co <- stage2(as.matrix(weights_padded_co), n_nonzero_co)
-stage2_abc <- stage2(cbind(weights_padded_a, weights_padded_b, weights_padded_co),
-                     n_nonzero_a + n_nonzero_b + n_nonzero_co)
+stage2_a <- compute_effect_size(as.matrix(weights_padded_a), n_nonzero_a)
+stage2_b <- compute_effect_size(as.matrix(weights_padded_b), n_nonzero_b)
+stage2_co <- compute_effect_size(as.matrix(weights_padded_co), n_nonzero_co)
+stage2_abc <- compute_effect_size(cbind(weights_padded_a, weights_padded_b, weights_padded_co),
+                                  n_nonzero_a + n_nonzero_b + n_nonzero_co)
+
+# Perform association tests -----------------------------------------------------------------------
 
 # Convert from 1x1 matrix to numeric
 stage2_a$theta <- as.numeric(stage2_a$theta)
@@ -514,7 +244,7 @@ stage2_b$variance_theta <- as.numeric(stage2_b$variance_theta)
 stage2_co$theta <- as.numeric(stage2_co$theta)
 stage2_co$variance_theta <- as.numeric(stage2_co$variance_theta)
 
-# The "direct" variables refer to stage 2 models with only one term
+# The "direct" variables refer to proteome-disease association models with only one term
 if (!is.na(stage2_a$variance_theta)) {
   wald_direct_a <- stage2_a$theta^2 / stage2_a$variance_theta
   pvalue_direct_a <- stats::pchisq(wald_direct_a, 1, lower.tail = FALSE)
@@ -536,7 +266,7 @@ if (!is.na(stage2_co$variance_theta)) {
   pvalue_direct_co <- NA
 }
 
-# The "full" variables refer to the stage 2 model with three terms
+# The "full" variables refer to the COWAS proteome-disease association model, which has three terms
 if (!anyNA(stage2_abc$variance_theta)) {
   wald_full_a <- stage2_abc$theta[1,1]^2 / stage2_abc$variance_theta[1,1]
   pvalue_full_a <- stats::pchisq(wald_full_a, 1, lower.tail = FALSE)
@@ -550,7 +280,7 @@ if (!anyNA(stage2_abc$variance_theta)) {
   pvalue_full_a <- pvalue_full_b <- pvalue_full_co <- NA
 }
 
-# Perform an F-test to determine if the stage 2 model with three terms is significantly better than a null model
+# Perform an F-test to determine if the COWAS association model is significantly better than a null model
 if (!is.na(stage2_abc$rss)) {
   stage2_abc$rss <- as.numeric(stage2_abc$rss)
   f_statistic <- ((n_gwas - 4) * (n_gwas - 1 - stage2_abc$rss)) / (3 * stage2_abc$rss)
@@ -559,11 +289,10 @@ if (!is.na(stage2_abc$rss)) {
   f_statistic <- f_pvalue <- NA
 }
 
+# Save effect sizes and test results --------------------------------------------------------------
+
 # Append results to the output file
-output <- c(opt$protein_a, opt$protein_b, n_expression, n_gwas,
-            n_nonzero_a, r2_a,
-            n_nonzero_b, r2_b,
-            n_nonzero_co, r2_co,
+output <- c(opt$protein_a, opt$protein_b, n_reference, n_gwas,
             stage2_a$theta, stage2_a$variance_theta, pvalue_direct_a,
             stage2_b$theta, stage2_b$variance_theta, pvalue_direct_b,
             stage2_co$theta, stage2_co$variance_theta, pvalue_direct_co,

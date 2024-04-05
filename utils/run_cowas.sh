@@ -9,134 +9,100 @@
 #SBATCH --mail-user=malak039@umn.edu
 #SBATCH -o logs/%j.out
 
-# A file that lists pairs of genes or proteins for which to perform COWAS.
-# This should be a text file with one tab-separated pair of gene/protein names per line.
+# A file that lists pairs of proteins for which to perform the COWAS association test.
+# This should be a text file with one tab-separated pair of protein names per line.
 PAIRS=pairs/all_protein_pairs.tsv
 
-# File name of the individual-level genotype data to use (in PLINK 2.0 format)
-GENOTYPES=genotypes_subset_for_AD
-
 # File name of the GWAS summary dataset to use
-GWAS=Bellenguez_2022_AD_GWAS.tsv
+GWAS=data_cleaned/Bellenguez_2022_AD_GWAS.tsv
 
-# File name for COWAS results
-OUT_FILE=all_proteins.tsv
+# Path to a folder containing pre-trained COWAS model weights, as saved by train_cowas.R
+WEIGHTS=cowas_weights
 
-# Directory for storing the COWAS output file
-OUT_DIR=output
+# Base name of the genotype data to use as an LD reference panel (in PLINK 2.0 format)
+GENOTYPES=data_cleaned/genotypes_subset_for_AD
 
-# The type of model to fit.
-# Valid options are stepwise, ridge, lasso, and elastic_net.
-MODEL=elastic_net
+# Folder with files listing the variants used as predictors for each protein.
+# This is only for filtering the genotypes before loading them into cowas.R, in order to decrease runtime.
+PREDICTORS=predictors_for_AD
+
+# File name to which COWAS test results will be written
+OUT_FILE=cowas_results.tsv
 
 # Number of cores to use for parallelization
 CORES=32
 
-# Minimum R^2 threshold for expression and co-expression prediction models
-R2_THRESHOLD=0.001
-
 
 printf "Runtime parameters:\n"
 printf "PAIRS = ${PAIRS}\n"
-printf "GENOTYPES = ${GENOTYPES}\n"
 printf "GWAS = ${GWAS}\n"
+printf "WEIGHTS = ${WEIGHTS}\n"
+printf "GENOTYPES = ${GENOTYPES}\n"
+printf "PREDICTORS = ${PREDICTORS}\n"
 printf "OUT_FILE = ${OUT_FILE}\n"
-printf "OUT_DIR = ${OUT_DIR}\n"
-printf "MODEL = ${MODEL}\n"
-printf "CORES = ${CORES}\n"
-printf "R2_THRESHOLD = ${R2_THRESHOLD}\n\n"
+printf "CORES = ${CORES}\n\n"
 
 module load R/4.3.0-openblas
 
-if ( [ ! -d ${OUT_DIR} ] ); then
-mkdir ${OUT_DIR}
-fi
+# This variable sets the number of cores for R to use
+export OMP_NUM_THREADS=${CORES}
 
-if ( [ ! -f ${OUT_DIR}/${OUT_FILE} ] ); then
+if ( [ ! -f ${OUT_FILE} ] ); then
 printf "ID_A\tID_B\tN_REFERENCE\tN_GWAS\t\
-NFEATURES_A\tR2PRED_A\t\
-NFEATURES_B\tR2PRED_B\t\
-NFEATURES_CO\tR2PRED_CO\t\
 THETA_DIRECT_A\tVAR_THETA_DIRECT_A\tPVAL_THETA_DIRECT_A\t\
 THETA_DIRECT_B\tVAR_THETA_DIRECT_B\tPVAL_THETA_DIRECT_B\t\
 THETA_DIRECT_CO\tVAR_THETA_DIRECT_CO\tPVAL_THETA_DIRECT_CO\t\
 THETA_FULL_A\tVAR_THETA_FULL_A\tPVAL_THETA_FULL_A\t\
 THETA_FULL_B\tVAR_THETA_FULL_B\tPVAL_THETA_FULL_B\t\
 THETA_FULL_CO\tVAR_THETA_FULL_CO\tPVAL_THETA_FULL_CO\t\
-FSTAT_FULL\tPVAL_FSTAT_FULL\n" > ${OUT_DIR}/${OUT_FILE}
+FSTAT_FULL\tPVAL_FSTAT_FULL\n" > ${OUT_FILE}
 fi
-
-# Read names of proteins with available expression measurements
-read -r MEASURED_PROTEINS < data_cleaned/proteins.tsv
 
 # Loop through all protein pairs in the $PAIRS file
 while read -r PROTEIN_A PROTEIN_B ETC; do
 
-if ( [[ ${PROTEIN_A} == ${PROTEIN_B} ]] ); then
+if ( [ ! -f ${WEIGHTS}/${PROTEIN_A}-{PROTEIN_B}.weights.rds ] ); then
+printf "WARNING: no model weights found for ${PROTEIN_A} and ${PROTEIN_B}. Skipping this pair.\n"
 continue
 fi
 
-if ( [[ ${MEASURED_PROTEINS} != *"${PROTEIN_A}"* ]] || [[ ${MEASURED_PROTEINS} != *"${PROTEIN_B}"* ]] ); then
-printf "WARNING: expression data not found for ${PROTEIN_A} or ${PROTEIN_B}. Skipping this pair.\n"
-continue
-fi
-
-if ( [ ! -f predictors/${PROTEIN_A}.variants.txt ] || [ ! -f predictors/${PROTEIN_B}.variants.txt ] ); then
+if ( [ ! -f ${PREDICTORS}/${PROTEIN_A}.variants.txt ] || [ ! -f ${PREDICTORS}/${PROTEIN_B}.variants.txt ] ); then
 printf "WARNING: list of predictors not found for ${PROTEIN_A} or ${PROTEIN_B}. Skipping this pair.\n"
 continue
 fi
 
 # Create folder for storing temporary files
-COWAS_TEMP=${OUT_DIR}/TEMP_${PROTEIN_A}_${PROTEIN_B}
+COWAS_TEMP=TEMP-${PROTEIN_A}-${PROTEIN_B}
 mkdir ${COWAS_TEMP}
 
-# Extract pre-screened variants for each protein, then create a pvar file listing them
-# and export their genotypes to a text file with 0..2 coding
-plink2 --pfile data_cleaned/${GENOTYPES} \
+# Extract genotypes for variants present in the pre-trained models, to use as an LD reference panel
+plink2 --pfile ${GENOTYPES} \
        --silent \
        --threads ${CORES} \
-       --extract predictors/${PROTEIN_A}.variants.txt \
+       --extract predictors/${PROTEIN_A}.variants.txt predictors/${PROTEIN_B}.variants.txt \
        --export A \
        --export-allele data_cleaned/ukb_alt_alleles.tsv \
        --make-just-pvar cols=maybecm \
-       --out ${COWAS_TEMP}/${PROTEIN_A}
-plink2 --pfile data_cleaned/${GENOTYPES} \
-       --silent \
-       --threads ${CORES} \
-       --extract predictors/${PROTEIN_B}.variants.txt \
-       --export A \
-       --export-allele data_cleaned/ukb_alt_alleles.tsv \
-       --make-just-pvar cols=maybecm \
-       --out ${COWAS_TEMP}/${PROTEIN_B}
+       --out ${COWAS_TEMP}/genotypes
 
-if ( [ ! -f ${COWAS_TEMP}/${PROTEIN_A}.raw ] || [ ! -f ${COWAS_TEMP}/${PROTEIN_B}.raw ] ); then
-printf "WARNING: Unable to extract genotype data for ${PROTEIN_A} or ${PROTEIN_B}. Skipping this pair.\n"
+if ( [ ! -f ${COWAS_TEMP}/genotypes.raw ] ); then
+printf "WARNING: Unable to extract genotype data for ${PROTEIN_A} and ${PROTEIN_B}. Skipping this pair.\n"
 rm -rf ${COWAS_TEMP}
 continue
 fi
 
-# Remove unnecessary columns from the raw PLINK genotype files
-cut -f 2,7- ${COWAS_TEMP}/${PROTEIN_A}.raw > ${COWAS_TEMP}/${PROTEIN_A}.gmatrix
-cut -f 2,7- ${COWAS_TEMP}/${PROTEIN_B}.raw > ${COWAS_TEMP}/${PROTEIN_B}.gmatrix
-
-# Create a single pvar file with variants for both proteins.
-# This will duplicate variants that appear in both files, but cowas.R takes care of that later.
-cat ${COWAS_TEMP}/${PROTEIN_A}.pvar ${COWAS_TEMP}/${PROTEIN_B}.pvar > ${COWAS_TEMP}/both.snps
+# Remove unnecessary columns from the raw PLINK genotype file
+cut -f 7- ${COWAS_TEMP}/genotypes.raw > ${COWAS_TEMP}/ld_reference.gmatrix
 
 # And this is where the magic happens!
 ./cowas.R --protein_a ${PROTEIN_A} \
           --protein_b ${PROTEIN_B} \
-          --genotypes_a ${COWAS_TEMP}/${PROTEIN_A}.gmatrix \
-          --genotypes_b ${COWAS_TEMP}/${PROTEIN_B}.gmatrix \
-          --snps ${COWAS_TEMP}/both.snps \
-          --expression data_cleaned/proteins.tsv \
-          --covariates data_cleaned/covariates.tsv \
-          --gwas data_cleaned/${GWAS} \
-          --out ${OUT_DIR}/${OUT_FILE} \
-          --model ${MODEL} \
-          --cores ${CORES} \
-          --r2_threshold ${R2_THRESHOLD} \
-          --rank_normalize TRUE
+          --gwas ${GWAS} \
+          --weights ${WEIGHTS} \
+          --alleles ${COWAS_TEMP}/genotypes.pvar \
+          --ld_reference ${COWAS_TEMP}/ld_reference.gmatrix \
+          --out ${OUT_FILE} \
+          --cores ${CORES}
 
 rm -rf ${COWAS_TEMP}
 
