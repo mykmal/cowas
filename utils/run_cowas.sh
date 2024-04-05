@@ -24,7 +24,7 @@ GENOTYPES=data_cleaned/genotypes_subset_for_AD
 
 # Folder with files listing the variants used as predictors for each protein.
 # This is only for filtering the genotypes before loading them into cowas.R, in order to decrease runtime.
-PREDICTORS=predictors_for_AD
+PREDICTORS=predictors_sis
 
 # File name to which COWAS test results will be written
 OUT_FILE=cowas_results.tsv
@@ -61,7 +61,7 @@ fi
 # Loop through all protein pairs in the $PAIRS file
 while read -r PROTEIN_A PROTEIN_B ETC; do
 
-if ( [ ! -f ${WEIGHTS}/${PROTEIN_A}-{PROTEIN_B}.weights.rds ] ); then
+if ( [ ! -f ${WEIGHTS}/${PROTEIN_A}-${PROTEIN_B}.weights.rds ] ); then
 printf "WARNING: no model weights found for ${PROTEIN_A} and ${PROTEIN_B}. Skipping this pair.\n"
 continue
 fi
@@ -79,7 +79,7 @@ mkdir ${COWAS_TEMP}
 plink2 --pfile ${GENOTYPES} \
        --silent \
        --threads ${CORES} \
-       --extract predictors/${PROTEIN_A}.variants.txt predictors/${PROTEIN_B}.variants.txt \
+       --extract ${PREDICTORS}/${PROTEIN_A}.variants.txt ${PREDICTORS}/${PROTEIN_B}.variants.txt \
        --export A \
        --export-allele data_cleaned/ukb_alt_alleles.tsv \
        --make-just-pvar cols=maybecm \

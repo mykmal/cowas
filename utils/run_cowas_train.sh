@@ -15,7 +15,7 @@ PAIRS=pairs/all_protein_pairs.tsv
 
 # Folder with files listing the variants to use as predictors for each protein.
 # Files should be named <PROTEIN_NAME>.variants.txt and contain one column of variant IDs.
-PREDICTORS=predictors_for_AD
+PREDICTORS=predictors_sis
 
 # Base name of the genotype data (in PLINK 2.0 format)
 GENOTYPES=data_cleaned/genotypes_subset_for_AD
