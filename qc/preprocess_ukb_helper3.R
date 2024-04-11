@@ -20,7 +20,7 @@ ad_gwas <- ad_gwas[!variant_id %in% ad_duplicated_variants, ]
 ad_gwas <- merge(ad_gwas, ukb_variants, by.x = "variant_id", by.y = "ID", sort = FALSE)
 ad_gwas <- ad_gwas[(effect_allele == ALT & other_allele == REF) | (effect_allele == REF & other_allele == ALT), ]
 
-# Compute Z-scores because they were not provided by Bellenguez et al.
+# Compute Z-scores because they were not provided
 ad_gwas[, z_score := as.numeric(beta) / as.numeric(standard_error)]
 ad_gwas[, c("beta", "standard_error") := NULL]
 
@@ -47,41 +47,88 @@ fwrite(ad_gwas, file = "data_cleaned/Bellenguez_2022_AD_GWAS.tsv", quote = FALSE
 
 rm(ad_gwas, ad_duplicated_variants, ad_variants_keep)
 
-# Schizophrenia GWAS ------------------------------------------------------------------------------
+# Parkinson's disease GWAS ------------------------------------------------------------------------
 
 # Load GWAS data
-scz_gwas <- fread(file = "data_raw/PGC3_SCZ_wave3.european.autosome.public.v3.vcf.tsv",
-                  skip = 73, header = TRUE, na.strings = "NA", stringsAsFactors = FALSE,
-                  select = c("ID", "A1", "A2", "BETA", "SE", "NCAS", "NCON"))
+pd_gwas <- fread(file = "data_raw/GCST009325.h.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE,
+                 select = c("rsid", "effect_allele", "other_allele", "beta", "standard_error", "N_cases", "N_controls"))
 
-setnames(scz_gwas, c("variant_id", "effect_allele", "other_allele", "beta", "standard_error", "n_cases", "n_controls"))
+setnames(pd_gwas, c("variant_id", "effect_allele", "other_allele", "beta", "standard_error", "n_cases", "n_controls"))
 
-# Subset to the variants included in both the SCZ GWAS and the UKB imputed genotype data
-scz_gwas <- merge(scz_gwas, ukb_variants, by.x = "variant_id", by.y = "ID", sort = FALSE)
-scz_gwas <- scz_gwas[(effect_allele == ALT & other_allele == REF) | (effect_allele == REF & other_allele == ALT), ]
+# Remove duplicated variants, if there are any
+pd_duplicated_variants <- pd_gwas[duplicated(variant_id), ]$variant_id
+message("\nNOTE: ", nrow(pd_gwas[variant_id %in% pd_duplicated_variants, ]), " duplicated rows removed from the Nalls et al. GWAS\n")
+pd_gwas <- pd_gwas[!variant_id %in% pd_duplicated_variants, ]
 
-# Compute Z-scores because they were not provided by Trubetskoy et al.
-scz_gwas[, z_score := as.numeric(beta) / as.numeric(standard_error)]
-scz_gwas[, c("beta", "standard_error") := NULL]
+# Subset to the variants included in both the PD GWAS and the UKB imputed genotype data
+pd_gwas <- merge(pd_gwas, ukb_variants, by.x = "variant_id", by.y = "ID", sort = FALSE)
+pd_gwas <- pd_gwas[(effect_allele == ALT & other_allele == REF) | (effect_allele == REF & other_allele == ALT), ]
 
-# Flip the SCZ GWAS summary statistics when necessary
-scz_gwas[effect_allele != ALT, flip := TRUE]
-scz_gwas[flip == TRUE, `:=` (effect_allele_flipped = other_allele,
-                             other_allele_flipped = effect_allele,
-                             z_score = -1 * as.numeric(z_score))]
-scz_gwas[flip == TRUE, `:=` (effect_allele = effect_allele_flipped,
-                             other_allele = other_allele_flipped)]
-scz_gwas[, c("REF", "ALT", "flip", "effect_allele_flipped", "other_allele_flipped") := NULL]
+# Compute Z-scores because they were not provided
+pd_gwas[, z_score := as.numeric(beta) / as.numeric(standard_error)]
+pd_gwas[, c("beta", "standard_error") := NULL]
+
+# Flip the PD GWAS summary statistics when necessary
+pd_gwas[effect_allele != ALT, flip := TRUE]
+pd_gwas[flip == TRUE, `:=` (effect_allele_flipped = other_allele,
+                            other_allele_flipped = effect_allele,
+                            z_score = -1 * as.numeric(z_score))]
+pd_gwas[flip == TRUE, `:=` (effect_allele = effect_allele_flipped,
+                            other_allele = other_allele_flipped)]
+pd_gwas[, c("REF", "ALT", "flip", "effect_allele_flipped", "other_allele_flipped") := NULL]
 
 # Create a column for the total sample size
-scz_gwas[, n_samples := as.numeric(n_cases) + as.numeric(n_controls)]
-scz_gwas[, c("n_cases", "n_controls") := NULL]
+pd_gwas[, n_samples := as.numeric(n_cases) + as.numeric(n_controls)]
+pd_gwas[, c("n_cases", "n_controls") := NULL]
 
-# The final list of variants that will be used for SCZ analysis
-scz_gwas <- na.omit(scz_gwas)
-scz_variants_keep <- scz_gwas$variant_id
+# The final list of variants that will be used for PD analysis
+pd_gwas <- na.omit(pd_gwas)
+pd_variants_keep <- pd_gwas$variant_id
 
 # Save the processed GWAS summary data
-write.table(scz_variants_keep, file = "TEMP_mutual_SCZ_variants.txt", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
-fwrite(scz_gwas, file = "data_cleaned/Trubetskoy_2022_SCZ_GWAS.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
+write.table(pd_variants_keep, file = "TEMP_mutual_PD_variants.txt", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+fwrite(pd_gwas, file = "data_cleaned/Nalls_2019_PD_GWAS.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
+
+rm(pd_gwas, pd_duplicated_variants, pd_variants_keep)
+
+# LDL cholesterol GWAS ----------------------------------------------------------------------------
+
+# Load GWAS data
+ldl_gwas <- fread(file = "data_raw/LDL_INV_EUR_HRC_1KGP3_others_ALL.meta.singlevar.results",
+                  header = TRUE, na.strings = "NA", stringsAsFactors = FALSE,
+                  select = c("rsID", "ALT", "REF", "EFFECT_SIZE", "SE", "N"))
+
+setnames(ldl_gwas, c("variant_id", "effect_allele", "other_allele", "beta", "standard_error", "n_samples"))
+
+# Remove duplicated variants, if there are any
+ldl_duplicated_variants <- ldl_gwas[duplicated(variant_id), ]$variant_id
+message("\nNOTE: ", nrow(ldl_gwas[variant_id %in% ldl_duplicated_variants, ]), " duplicated rows removed from the Graham et al. GWAS\n")
+ldl_gwas <- ldl_gwas[!variant_id %in% ldl_duplicated_variants, ]
+
+# Subset to the variants included in both the LDL GWAS and the UKB imputed genotype data
+ldl_gwas <- merge(ldl_gwas, ukb_variants, by.x = "variant_id", by.y = "ID", sort = FALSE)
+ldl_gwas <- ldl_gwas[(effect_allele == ALT & other_allele == REF) | (effect_allele == REF & other_allele == ALT), ]
+
+# Compute Z-scores because they were not provided
+ldl_gwas[, z_score := as.numeric(beta) / as.numeric(standard_error)]
+ldl_gwas[, c("beta", "standard_error") := NULL]
+
+# Flip the LDL GWAS summary statistics when necessary
+ldl_gwas[effect_allele != ALT, flip := TRUE]
+ldl_gwas[flip == TRUE, `:=` (effect_allele_flipped = other_allele,
+                             other_allele_flipped = effect_allele,
+                             z_score = -1 * as.numeric(z_score))]
+ldl_gwas[flip == TRUE, `:=` (effect_allele = effect_allele_flipped,
+                             other_allele = other_allele_flipped)]
+ldl_gwas[, c("REF", "ALT", "flip", "effect_allele_flipped", "other_allele_flipped") := NULL]
+
+# The final list of variants that will be used for LDL analysis
+ldl_gwas <- na.omit(ldl_gwas)
+ldl_variants_keep <- ldl_gwas$variant_id
+
+# Save the processed GWAS summary data
+write.table(ldl_variants_keep, file = "TEMP_mutual_LDL_variants.txt", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+fwrite(ldl_gwas, file = "data_cleaned/Graham_2021_LDL_GWAS.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
+
+rm(ldl_gwas, ldl_duplicated_variants, ldl_variants_keep)
 

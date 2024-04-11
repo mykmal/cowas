@@ -12,14 +12,14 @@ wget https://github.com/mykmal/cowas/archive/refs/heads/main.zip
 unzip main.zip && rm main.zip
 mv cowas-main cowas && cd cowas
 ```
-2. Launch R and install the required packages optparse and data.table. If you wish to use ridge, lasso, or elastic net models then also install the package glmnet. If you wish to utilize parallel computation in glmnet then also install the package doMC. We used R 4.3.0, optparse 1.7.4, data.table 1.15.2, glmnet 4.1-8, and doMC 1.3.8.
+2. Launch R and install the required packages optparse and data.table. If you wish to use ridge, lasso, or elastic net models then also install the package glmnet. If you wish to utilize parallel computation in glmnet then also install the package doMC. We used R 4.3.3, optparse 1.7.4, data.table 1.15.4, glmnet 4.1-8, and doMC 1.3.8.
 ```R
 > install.packages(c("optparse", "data.table", "glmnet", "doMC"))
 ```
-3. Download PLINK 2.00 and place it in a directory on your PATH. We used PLINK v2.00a6LM AVX2 AMD (2 Mar 2024).
+3. Download PLINK 2.00 and place it in a directory on your PATH. We used PLINK v2.00a6LM AVX2 AMD (18 Mar 2024).
 ```bash
-wget https://s3.amazonaws.com/plink2-assets/plink2_linux_amd_avx2_20240302.zip
-unzip plink2_linux_amd_avx2_20240302.zip && rm plink2_linux_amd_avx2_20240302.zip
+wget https://s3.amazonaws.com/plink2-assets/plink2_linux_amd_avx2_20240318.zip
+unzip plink2_linux_amd_avx2_20240318.zip && rm plink2_linux_amd_avx2_20240318.zip
 sudo mv plink2 /usr/local/bin/
 ```
 
@@ -31,7 +31,7 @@ This section describes how to perform a co-expression-wide association study (CO
 
 ## Training your own prediction models
 
-If you have access to individual-level genotype data and individual-level gene/protein expression data, you can train your own co-expression prediction models. Model training is performed for one pair of proteins at a time using the script `cowas_train.R`, which can be run directly from the command line. To view the required inputs and the documentation for each command-line option, run `./cowas_train.R --help`.
+If you have access to a dataset with individual-level genotype and gene/protein expression data, you can train your own co-expression prediction models. Model training is performed for one pair of proteins at a time using the script `cowas_train.R`, which can be run directly from the command line. To view the required inputs and the documentation for each command-line option, run `./cowas_train.R --help`.
 
 The `cowas_train.R` script will save fitted model weights to an RDS file named `<PROTEIN_A>-<PROTEIN_B>.weights.rds` in the specified output directory. The RDS file stores a list of three named vectors, which contain genetic variant weights for the two single-protein models and the co-expression model. This RDS file can be directly used as input for the `cowas.R` script to perform TWAS and COWAS association tests. In addition to saving model weights, `cowas_train.R` will also write model performance metrics to a tab-separated file named `performance_metrics.tsv` within the specified output directory. (Note that if this file already exists, a new line will be appended to its end.) The performance metrics file contains one line per protein pair and the following nine columns:
 
@@ -39,11 +39,11 @@ The `cowas_train.R` script will save fitted model weights to an RDS file named `
 2. Name or identifier of the second protein (i.e. <PROTEIN_B>)
 3. Full sample size
 4. Number of variants with nonzero weights in the PROTEIN_A model
-5. $R^2$ value of the PROTEIN_A model evaluated on a held-out 20% test set
+5. Correlation between measured and predicted expression for PROTEIN_A, evaluated on a held-out 20% test set
 6. Number of variants with nonzero weights in the PROTEIN_B model
-7. $R^2$ value of the PROTEIN_B model evaluated on a held-out 20% test set
+7. Correlation between measured and predicted expression for PROTEIN_B, evaluated on a held-out 20% test set
 8. Number of variants with nonzero weights in the co-expression model
-9. $R^2$ value of the co-expression model evaluated on a held-out 20% test set
+9. Correlation between estimated and predicted co-expression, evaluated on a held-out 20% test set
 
 In practice, you will probably want to use a shell script to automatically run `cowas_train.R` on all protein pairs in a specified list. We provide the script `utils/run_cowas_train.sh` to do just that. For each protein pair, this script will automatically extract predictor variants from a PLINK-format file, convert their genotypes to the required format for COWAS, and then run `cowas_train.R`. All of the necessary parameters are set as environmental variables at the top of the script; see the accompanying comments for usage instructions.
 
@@ -53,7 +53,7 @@ The `cowas_train.R` script will use all variants in the provided genotype matric
 
 1. **Variants selected by sure independence screening (SIS).** SIS is a variable selection method based on correlation learning. First, componentwise regression is performed to compute the marginal correlation between each standardized feature (genetic variant) and the response (protein expression). Then the features are ranked by the absolute values of their correlations, and the top $d$ (e.g. top 100) are selected as predictors.
 2. **Variants that are pQTLs.** Instead of ranking features by their correlation with the response, they can be ranked by their marginal association $P$-value. That is, the top $d$ (e.g. top 100) most significant pQTLs for the given protein can be used as predictors. Alternatively, one may wish to include all variants that pass a nominal significance threshold.
-3. **Variants located near the gene coding for the given protein.** Since most of the genetic heritability of expression is explained by *cis*-QTLs, the two previous approaches can be restricted to variants that act locally on the gene coding for the given protein. For example, one may wish to include variants within a 1 Mb window of the gene boundaries. If you're using the UK Biobank plasma proteomics (UKB-PPP) data, you can find the start and end positions for all genes encoding the assayed proteins at <https://www.synapse.org/#!Synapse:syn52364558>. (Note, however, that the positions given in that file are on the GRCh38 build, while the UK Biobank genotype data are on the GRCh37 build.)
+3. **Variants located near the gene coding for the given protein.** Since most of the genetic heritability of expression is explained by *cis*-QTLs, the two previous approaches can be restricted to variants that act locally on the gene coding for the given protein. For example, one may wish to include variants within a 500 kb window of the gene boundaries. If you're using the UK Biobank plasma proteomics (UKB-PPP) data, you can find the start and end positions for all genes encoding the assayed proteins at <https://www.synapse.org/#!Synapse:syn52364558>. (Note, however, that the positions given in that file are on the GRCh38 build, while the UK Biobank genotype data are on the GRCh37 build.)
 
 We provide the shell script `utils/map_pqtls.sh` for computing variant-protein associations for all proteins in the UKB-PPP dataset, and it can be easily modified for use with other datasets as well. The resulting summary statistics are saved to protein-specific, tab-separated files named `pqtls/<GENE_NAME>.sumstats.tsv` with one line per variant and the following six columns: #CHROM, POS, ID, A1, BETA, P. These summary statistics can then be filtered to select predictors for the expression imputation models according to either the strength of their correlation (BETA) or the significance of their association (P).
 
@@ -80,9 +80,11 @@ You will also need Data-Coding 143, which is a flat list containing gene names f
 
 ## GWAS summary statistics
 
-For Alzheimer's disease, we used summary statistics data from the GWAS published by Bellenguez et al. (2022). The summary-level associations can be downloaded from <https://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST90027001-GCST90028000/GCST90027158/>. Place the unpacked file `GCST90027158_buildGRCh38.tsv` in `data_raw`.
+For Alzheimer's disease, we used GWAS summary statistics data from the European Alzheimer & Dementia Biobank consortium (Bellenguez et al. 2022). The summary-level associations can be downloaded from <https://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST90027001-GCST90028000/GCST90027158/>. Place the unpacked file `GCST90027158_buildGRCh38.tsv` in `data_raw`.
 
-For schizophrenia, we used summary statistics data from the GWAS published by Trubetskoy et al. (2022). The summary-level associations can be downloaded from <https://doi.org/10.6084/m9.figshare.19426775>. Place the unpacked file `PGC3_SCZ_wave3.european.autosome.public.v3.vcf.tsv` in `data_raw`.
+For Parkinson's disease, we used GWAS summary statistics data from the International Parkinson's Disease Genomics Consortium (Nalls et al. 2019). The summary-level associations can be downloaded from <https://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST009001-GCST010000/GCST009325/harmonised/>. Place the unpacked file `GCST009325.h.tsv` in `data_raw`.
+
+For LDL cholesterol levels, we used GWAS summary statistics data from the Global Lipids Genetics Consortium (Graham et al. 2021). Note that this study provides multi-ancestry as well as ancestry-specific results, but we only considered the European results in order to match the genetic ancestry of the UK Biobank. The summary-level associations can be downloaded from <https://csg-sph-umich-edu.ezp1.lib.umn.edu/willer/public/glgc-lipids2021/results/ancestry_specific/>. Place the unpacked file `	LDL_INV_EUR_HRC_1KGP3_others_ALL.meta.singlevar.results` in `data_raw`.
 
 ## Data processing script
 

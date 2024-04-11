@@ -174,9 +174,16 @@ plink2 --pfile data_cleaned/genotypes \
 plink2 --pfile data_cleaned/genotypes \
        --threads 30 \
        --memory 120000 \
-       --extract TEMP_mutual_SCZ_variants.txt \
+       --extract TEMP_mutual_PD_variants.txt \
        --make-pgen psam-cols=sex \
-       --out data_cleaned/genotypes_subset_for_SCZ
+       --out data_cleaned/genotypes_subset_for_PD
+
+plink2 --pfile data_cleaned/genotypes \
+       --threads 30 \
+       --memory 120000 \
+       --extract TEMP_mutual_LDL_variants.txt \
+       --make-pgen psam-cols=sex \
+       --out data_cleaned/genotypes_subset_for_LDL
 
 rm TEMP*
 
