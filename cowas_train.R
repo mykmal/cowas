@@ -64,12 +64,13 @@ option_list <- list(
                 computation. [default: `%default`]"
   ),
   make_option(
-    c("--r2_threshold"),
-    default = 0.001,
+    c("--cor_threshold"),
+    default = 0.03,
     type = "double",
-    help = "R^2 threshold for expression and co-expression prediction models. COWAS model
-                weights will only be saved if all three models have a predictive R^2 value
-                (calculated on a held-out test set) above this threshold. [default: `%default`]"
+    help = "Correlation threshold for expression and co-expression prediction models. COWAS
+                model weights will only be saved if the Pearson correlation between measured
+                and predicted expression (calculated on a held-out test set) is above this
+                threshold for all three models. [default: `%default`]"
   ),
   make_option(
     c("--rank_normalize"),
@@ -393,14 +394,14 @@ if (opt$model == "stepwise") {
 # Compute the conditional co-expression between the two proteins using full-sample model weights
 set(x = expression, j = "coexpression", value = (expression[[opt$protein_a]] - imputed_full_a) * (expression[[opt$protein_b]] - imputed_full_b))
 
-# Compute R^2 on the test set
-r2_a <- stats::cor(expression[test_indices, ][[opt$protein_a]], imputed_test_a)^2
-r2_b <- stats::cor(expression[test_indices, ][[opt$protein_b]], imputed_test_b)^2
-r2_co <- stats::cor(expression[test_indices, ][["coexpression"]], imputed_test_co)^2
+# Compute correlation on the test set
+r_a <- stats::cor(expression[test_indices, ][[opt$protein_a]], imputed_test_a)
+r_b <- stats::cor(expression[test_indices, ][[opt$protein_b]], imputed_test_b)
+r_co <- stats::cor(expression[test_indices, ][["coexpression"]], imputed_test_co)
 
-# Check that all three models pass the R^2 threshold
-if (r2_a < opt$r2_threshold || r2_b < opt$r2_threshold || r2_co < opt$r2_threshold) {
-  stop("At least one of the models in the pair ", opt$protein_a, "_", opt$protein_b, " fails the R^2 threshold. This pair will be skipped.")
+# Check that all three models pass the correlation threshold
+if (r_a < opt$cor_threshold || r_b < opt$cor_threshold || r_co < opt$cor_threshold) {
+  stop("At least one of the models in the pair ", opt$protein_a, "_", opt$protein_b, " fails the correlation threshold. This pair will be skipped.")
 }
 
 # Save model weights and performance metrics ------------------------------------------------------
@@ -411,9 +412,9 @@ saveRDS(weights_final, file = paste0(opt$out_folder, "/", opt$protein_a, "-", op
 
 # Gather performance metrics
 metrics <- c(opt$protein_a, opt$protein_b, n_expression,
-             n_nonzero_a, r2_a,
-             n_nonzero_b, r2_b,
-             n_nonzero_co, r2_co)
+             n_nonzero_a, r_a,
+             n_nonzero_b, r_b,
+             n_nonzero_co, r_co)
 
 # Append the performance metrics to the output file
 write.table(t(metrics), file = paste0(opt$out_folder, "/performance_metrics.tsv"),

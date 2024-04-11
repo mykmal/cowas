@@ -3,7 +3,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=64gb
-#SBATCH --time=96:00:00
+#SBATCH --time=24:00:00
 #SBATCH --partition=agsmall,aglarge,ag2tb
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=malak039@umn.edu
