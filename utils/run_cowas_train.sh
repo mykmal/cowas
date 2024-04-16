@@ -52,7 +52,7 @@ printf "MODEL = ${MODEL}\n"
 printf "CORES = ${CORES}\n"
 printf "R2_THRESHOLD = ${R2_THRESHOLD}\n\n"
 
-module load R/4.3.0-openblas
+module load R/4.3.3-openblas
 
 if ( [ ! -d ${OUT_DIR} ] ); then
 mkdir ${OUT_DIR}

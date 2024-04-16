@@ -9,7 +9,7 @@
 #SBATCH --mail-user=malak039@umn.edu
 #SBATCH -o logs/%j.out
 
-module load R/4.3.0-openblas
+module load R/4.3.3-openblas
 
 mkdir pairs
 mkdir data_cleaned

@@ -42,7 +42,7 @@ printf "PREDICTORS = ${PREDICTORS}\n"
 printf "OUT_FILE = ${OUT_FILE}\n"
 printf "CORES = ${CORES}\n\n"
 
-module load R/4.3.0-openblas
+module load R/4.3.3-openblas
 
 # This variable sets the number of cores for R to use
 export OMP_NUM_THREADS=${CORES}
