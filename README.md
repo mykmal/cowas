@@ -84,7 +84,7 @@ For Alzheimer's disease, we used GWAS summary statistics data from the European 
 
 For Parkinson's disease, we used GWAS summary statistics data from the International Parkinson's Disease Genomics Consortium (Nalls et al. 2019). The summary-level associations can be downloaded from <https://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST009001-GCST010000/GCST009325/harmonised/>. Place the unpacked file `GCST009325.h.tsv` in `data_raw`.
 
-For LDL cholesterol levels, we used GWAS summary statistics data from the Global Lipids Genetics Consortium (Graham et al. 2021). Note that this study provides multi-ancestry as well as ancestry-specific results, but we only considered the European results in order to match the genetic ancestry of the UK Biobank. The summary-level associations can be downloaded from <https://csg-sph-umich-edu.ezp1.lib.umn.edu/willer/public/glgc-lipids2021/results/ancestry_specific/>. Place the unpacked file `	LDL_INV_EUR_HRC_1KGP3_others_ALL.meta.singlevar.results` in `data_raw`.
+For LDL cholesterol levels, we used GWAS summary statistics data from the Global Lipids Genetics Consortium (Graham et al. 2021). Note that this study provides multi-ancestry as well as ancestry-specific results, but we only considered the European results in order to match the genetic ancestry of the UK Biobank. The summary-level associations can be downloaded from <https://csg.sph.umich.edu/willer/public/glgc-lipids2021/results/ancestry_specific/>. Place the unpacked file `LDL_INV_EUR_HRC_1KGP3_others_ALL.meta.singlevar.results` in `data_raw`.
 
 ## Data processing script
 
