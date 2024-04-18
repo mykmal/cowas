@@ -33,7 +33,7 @@ plink2 --pfile TEMP_merged \
        --make-pgen \
        --out TEMP_1
 
-Rscript --vanilla util/preprocess_ukb_helper1.R
+Rscript --vanilla qc/preprocess_ukb_helper1.R
 
 plink2 --pfile TEMP_1 \
        --threads 30 \
@@ -158,11 +158,11 @@ plink2 --pfile TEMP_PCA_2 \
        --pca 20 \
        --out TEMP_top20_pcs
 
-Rscript --vanilla util/preprocess_ukb_helper2.R
+Rscript --vanilla qc/preprocess_ukb_helper2.R
 
 rm data_cleaned/covariates_nopc.tsv
 
-Rscript --vanilla util/preprocess_ukb_helper3.R
+Rscript --vanilla qc/preprocess_ukb_helper3.R
 
 plink2 --pfile data_cleaned/genotypes \
        --threads 30 \
