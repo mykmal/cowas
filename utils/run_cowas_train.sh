@@ -18,7 +18,7 @@ PAIRS=pairs/all_protein_pairs.tsv
 PREDICTORS=predictors_sis
 
 # Base name of the genotype data (in PLINK 2.0 format)
-GENOTYPES=data_cleaned/genotypes_subset_for_AD
+GENOTYPES=data_cleaned/genotypes
 
 # File name of the expression data (in plain text, long format)
 EXPRESSION=data_cleaned/proteins.tsv
@@ -27,7 +27,7 @@ EXPRESSION=data_cleaned/proteins.tsv
 COVARIATES=data_cleaned/covariates.tsv
 
 # Folder for storing COWAS weights
-OUT_DIR=output
+OUT_DIR=cowas_weights
 
 # The type of model to fit.
 # Valid options are stepwise, ridge, lasso, and elastic_net.
@@ -36,8 +36,8 @@ MODEL=elastic_net
 # Number of cores to use for parallelization
 CORES=32
 
-# Minimum R^2 threshold for expression and co-expression prediction models
-R2_THRESHOLD=0.001
+# Correlation threshold for expression and co-expression prediction models
+COR_THRESHOLD=0.03
 
 # -------------------------------------------------------------------------------------------------
 
@@ -50,7 +50,7 @@ printf "COVARIATES = ${COVARIATES}\n"
 printf "OUT_DIR = ${OUT_DIR}\n"
 printf "MODEL = ${MODEL}\n"
 printf "CORES = ${CORES}\n"
-printf "R2_THRESHOLD = ${R2_THRESHOLD}\n\n"
+printf "COR_THRESHOLD = ${COR_THRESHOLD}\n\n"
 
 module load R/4.3.3-openblas
 
@@ -60,9 +60,9 @@ fi
 
 if ( [ ! -f ${OUT_DIR}/performance_metrics.tsv ] ); then
 printf "ID_A\tID_B\tSAMPLE_SIZE\t\
-NFEATURES_A\tR2PRED_A\t\
-NFEATURES_B\tR2PRED_B\t\
-NFEATURES_CO\tR2PRED_CO\n" > ${OUT_DIR}/performance_metrics.tsv
+NFEATURES_A\tCORRELATION_A\t\
+NFEATURES_B\tCORRELATION_B\t\
+NFEATURES_CO\tCORRELATION_CO\n" > ${OUT_DIR}/performance_metrics.tsv
 fi
 
 # Read names of proteins with available expression measurements
@@ -125,7 +125,7 @@ cut -f 2,7- ${COWAS_TEMP}/${PROTEIN_B}.raw > ${COWAS_TEMP}/${PROTEIN_B}.gmatrix
                 --out_folder ${OUT_DIR} \
                 --model ${MODEL} \
                 --cores ${CORES} \
-                --r2_threshold ${R2_THRESHOLD} \
+                --cor_threshold ${COR_THRESHOLD} \
                 --rank_normalize TRUE
 
 rm -rf ${COWAS_TEMP}
