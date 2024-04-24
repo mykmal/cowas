@@ -352,6 +352,11 @@ if (opt$model == "stepwise") {
                              s = "lambda.min", type = "response")
 }
 
+# Check that the predicted values are not constant
+if (sd(imputed_test_a) <= 0 || sd(imputed_test_b) <= 0 || sd(imputed_test_co) <= 0) {
+  stop("Imputed expression or co-expression is constant for at least one of the models in the pair ", opt$protein_a, "_", opt$protein_b, ". This pair will be skipped.")
+}
+
 # Fit full-sample models
 rm(training_output)
 if (opt$model == "stepwise") {
@@ -393,6 +398,11 @@ if (opt$model == "stepwise") {
 
 # Compute the conditional co-expression between the two proteins using full-sample model weights
 set(x = expression, j = "coexpression", value = (expression[[opt$protein_a]] - imputed_full_a) * (expression[[opt$protein_b]] - imputed_full_b))
+
+# Check that the predicted expression values and estimated co-expression values are not constant
+if (sd(imputed_full_a) <= 0 || sd(imputed_full_b) <= 0 || sd(expression$coexpression) <= 0) {
+  stop("Imputed expression or co-expression is constant for at least one of the models in the pair ", opt$protein_a, "_", opt$protein_b, ". This pair will be skipped.")
+}
 
 # Compute correlation on the test set
 r_a <- stats::cor(expression[test_indices, ][[opt$protein_a]], imputed_test_a)
