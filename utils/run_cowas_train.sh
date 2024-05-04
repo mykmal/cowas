@@ -52,7 +52,7 @@ printf "MODEL = ${MODEL}\n"
 printf "CORES = ${CORES}\n"
 printf "COR_THRESHOLD = ${COR_THRESHOLD}\n\n"
 
-module load R/4.3.3-openblas
+module load R/4.4.0-openblas-rocky8
 
 if ( [ ! -d ${OUT_DIR} ] ); then
 mkdir ${OUT_DIR}

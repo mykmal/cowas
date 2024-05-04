@@ -12,14 +12,14 @@ wget https://github.com/mykmal/cowas/archive/refs/heads/main.zip
 unzip main.zip && rm main.zip
 mv cowas-main cowas && cd cowas
 ```
-2. Launch R and install the required packages optparse and data.table. If you wish to use ridge, lasso, or elastic net models then also install the package glmnet. If you wish to utilize parallel computation in glmnet then also install the package doMC. We used R 4.3.3, optparse 1.7.4, data.table 1.15.4, glmnet 4.1-8, and doMC 1.3.8.
+2. Launch R and install the required packages optparse and data.table. If you wish to train your own ridge, lasso, or elastic net models then also install the package glmnet. If you wish to utilize parallel computation in glmnet then also install the package doMC. We used R 4.4.0, optparse 1.7.5, data.table 1.15.4, glmnet 4.1.8, and doMC 1.3.8.
 ```R
 > install.packages(c("optparse", "data.table", "glmnet", "doMC"))
 ```
-3. Download PLINK 2.00 and place it in a directory on your PATH. We used PLINK v2.00a6LM AVX2 AMD (18 Mar 2024).
+3. Download PLINK 2.00 and place it in a directory on your PATH. We used PLINK v2.00a6LM AVX2 AMD (18 Apr 2024).
 ```bash
-wget https://s3.amazonaws.com/plink2-assets/plink2_linux_amd_avx2_20240318.zip
-unzip plink2_linux_amd_avx2_20240318.zip && rm plink2_linux_amd_avx2_20240318.zip
+wget https://s3.amazonaws.com/plink2-assets/plink2_linux_amd_avx2_20240418.zip
+unzip plink2_linux_amd_avx2_20240418.zip && rm plink2_linux_amd_avx2_20240418.zip
 sudo mv plink2 /usr/local/bin/
 ```
 
