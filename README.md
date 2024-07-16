@@ -16,10 +16,10 @@ mv cowas-main cowas && cd cowas
 ```R
 > install.packages(c("optparse", "data.table", "glmnet", "doMC"))
 ```
-3. Download PLINK 2.00 and place it in a directory on your PATH. We used PLINK v2.00a6LM AVX2 AMD (18 Apr 2024).
+3. Download PLINK 2.00 and place it in a directory on your PATH. We used PLINK v2.00a6LM AVX2 AMD (9 Jun 2024).
 ```bash
-wget https://s3.amazonaws.com/plink2-assets/plink2_linux_amd_avx2_20240418.zip
-unzip plink2_linux_amd_avx2_20240418.zip && rm plink2_linux_amd_avx2_20240418.zip
+wget https://s3.amazonaws.com/plink2-assets/plink2_linux_amd_avx2_20240609.zip
+unzip plink2_linux_amd_avx2_20240609.zip && rm plink2_linux_amd_avx2_20240609.zip
 sudo mv plink2 /usr/local/bin/
 ```
 
