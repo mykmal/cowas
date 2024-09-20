@@ -16,41 +16,42 @@ option_list <- list(
   ),
   make_option(
     c("--gwas"),
-    help = "Path to a GWAS summary statistics file for the disease of interest. This should be
-                a tab-separated file with a header line followed by one line per variant,
-                containing the following columns: variant_id, effect_allele, other_allele,
-                z_score, n_samples. Other columns are allowed but will be ignored. Note that
-                variant IDs must be consistent with those used in COWAS weights and in the LD
-                reference. (In our provided weights, variants are denoted by rsID.) [required]"
+    help = "Path to a GWAS summary statistics file for the outcome trait of interest. This
+                should be a tab-separated file with a header line followed by one line per
+                variant, containing the following columns: variant_id, effect_allele,
+                other_allele, z_score, n_samples. Other columns are allowed but will be
+                ignored. Note that variant IDs must be consistent with those used in COWAS
+                weights and in the LD reference genotypes. (In our provided weights, variants
+                are denoted by rsID.) [required]"
   ),
   make_option(
     c("--weights"),
     default = "cowas_weights",
-    help = "Path to a folder containing pre-trained COWAS weights in RDS format, as saved by
+    help = "Path to a folder containing trained COWAS weights in RDS format, as saved by
                 cowas_train.R. [default: `%default`]"
   ),
   make_option(
     c("--alleles"),
     help = "Path to a table specifying the reference and effect alleles for each variant present
-                in the pre-trained COWAS models. This should be a tab-separated file with a
+                in the trained COWAS models. This should be a tab-separated file with a
                 header line followed by one line per variant, containing the following three
                 columns: ID, REF, ALT. Other columns are allowed but will be ignored. [required]"
   ),
   make_option(
     c("--ld_reference"),
-    help = "Path to an individual-level genotype matrix to use as a linkage disequilibrium (LD)
-                reference panel. This should be a tab-separated file with individuals in rows and
+    help = "Path to an individual-level genotype matrix to use for computing a linkage disequilibrium
+                (LD) reference panel. This should be a tab-separated file with individuals in rows and
                 variants in columns, beginning with a header line. Importantly, the coding alleles
                 here must match the COWAS model effect alleles. This can be ensured by creating the
-                LD reference file using PLINK's `export A` command with the `export-allele` option
-                set to the ALT alleles listed in --alleles. Moreover, variant IDs in the header must
-                be consistent with those used in COWAS weights and in the LD reference. (In our
+                LD reference genotype file using PLINK's `export A` command with the `export-allele`
+                option set to the ALT alleles listed in --alleles. Moreover, variant IDs in the header
+                must be consistent with those used in COWAS weights and in the LD reference. (In our
                 provided weights, variants are denoted by rsID.) [required]"
   ),
   make_option(
     c("--out"),
     default = "cowas_results.tsv",
-    help = "Path to a file where COWAS results will be stored. If the specified file already
+    help = "Path to a file where COWAS results will be saved. If the specified file already
                 exists, a new line of results will be appended to its end. [default: `%default`]"
   ),
   make_option(
@@ -71,25 +72,25 @@ if (anyNA(opt)) {
 # Set the requested number of cores
 setDTthreads(threads = opt$cores, restore_after_fork = TRUE)
 
-# Load GWAS data, model weights, allele file, and LD reference data -------------------------------
+# Load GWAS data, model weights, allele file, and LD reference genotypes --------------------------
 
-# Read GWAS summary statistics
+# Read the GWAS summary statistics
 gwas <- fread(file = opt$gwas, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE,
               select = c("variant_id", "effect_allele", "other_allele", "z_score", "n_samples"))
 gwas <- na.omit(gwas)
 
-# Read pre-trained model weights
+# Read the provided model weights
 weights <- readRDS(paste0(opt$weights, "/", opt$protein_a, "-", opt$protein_b, ".weights.rds"))
 weights_a <- weights$weights_a
 weights_b <- weights$weights_b
 weights_co <- weights$weights_co
 rm(weights)
 
-# Read allele list
+# Read the allele list
 snps <- fread(file = opt$alleles, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE,
               select = c("ID", "REF", "ALT"))
 
-# Read LD reference genotypes
+# Read the LD reference genotypes
 genotypes <- fread(file = opt$ld_reference, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE)
 
 # Remove allele codes after each rsid, in case files were created with `plink2 --recode A`
@@ -112,7 +113,7 @@ common_variants <- Reduce(intersect,
 # Subset the GWAS
 gwas <- gwas[variant_id %in% common_variants, ]
 
-# Subset model weights
+# Subset the model weights
 weights_a <- weights_a[intersect(common_variants, names(weights_a))]
 weights_b <- weights_b[intersect(common_variants, names(weights_b))]
 weights_co <- weights_co[intersect(common_variants, names(weights_co))]
@@ -120,7 +121,7 @@ weights_co <- weights_co[intersect(common_variants, names(weights_co))]
 # Subset the allele list
 snps <- snps[ID %in% common_variants, ]
 
-# Subset LD reference genotypes
+# Subset the LD reference genotype data
 keep <- which(names(genotypes) %in% common_variants)
 genotypes <- genotypes[, ..keep]
 
@@ -147,8 +148,8 @@ gwas[, c("effect_allele", "other_allele", "REF", "ALT") := NULL]
 
 # Compute an LD reference matrix from normalized genotypes ----------------------------------------
 
-# Fill in missing calls with the mode for each variant
-# This is a reasonable imputation method when the missingness rate is very low
+# Fill in missing calls with the mode for each variant.
+# This is a reasonable imputation method when the missingness rate is very low.
 for (rsid in names(genotypes)) {
   
   mode <- names(which.max(table(genotypes[[rsid]])))
@@ -176,19 +177,19 @@ n_gwas <- median(gwas$n_samples)
 # Save the LD reference sample size
 n_reference <- nrow(genotypes)
 
-# Compute the correlation between variants and disease
-genotype_disease_correlation <- gwas$z_score / sqrt(n_gwas - 2 + gwas$z_score^2)
+# Compute the pseudocorrelation between each variant and the outcome trait
+genotype_trait_correlations <- gwas$z_score / sqrt(n_gwas - 2 + gwas$z_score^2)
 
 # Convert from data table to matrix so that we can perform matrix operations
 genotypes <- as.matrix(genotypes)
-genotype_disease_correlation <- as.matrix(genotype_disease_correlation)
+genotype_trait_correlations <- as.matrix(genotype_trait_correlations)
 
 # Compute the LD matrix
 ld_matrix <- t(genotypes) %*% genotypes / n_reference
 
-# Compute association between imputed co-expression and disease -----------------------------------
+# Compute association between imputed (co-)expression and the trait -------------------------------
 
-# Formulas for computing the COWAS effect sizes and their variances
+# Formulas for computing PWAS/COWAS effect sizes and their variances
 compute_effect_size <- function(qtl_weights, n_features) {
   # This formula is derived from ordinary least squares (OLS) regression
   product <- t(qtl_weights) %*% ld_matrix %*% qtl_weights
@@ -203,9 +204,9 @@ compute_effect_size <- function(qtl_weights, n_features) {
   product_inverted <- solve(product)
   
   # See our paper for the derivation of the following three expressions -- it's too long to explain here
-  theta <- product_inverted %*% t(qtl_weights) %*% genotype_disease_correlation
+  theta <- product_inverted %*% t(qtl_weights) %*% genotype_trait_correlations
   
-  rss <- n_gwas * (1 - 2 * t(genotype_disease_correlation) %*% qtl_weights %*% theta + t(theta) %*% product %*% theta) - 1
+  rss <- n_gwas * (1 - 2 * t(genotype_trait_correlations) %*% qtl_weights %*% theta + t(theta) %*% product %*% theta) - 1
   rss <- as.numeric(rss)
   
   variance_theta <- product_inverted * rss / ((n_gwas - n_features - 1) * n_gwas)
@@ -244,7 +245,7 @@ stage2_b$variance_theta <- as.numeric(stage2_b$variance_theta)
 stage2_co$theta <- as.numeric(stage2_co$theta)
 stage2_co$variance_theta <- as.numeric(stage2_co$variance_theta)
 
-# The "direct" variables refer to proteome-disease association models with only one term
+# The "direct" variables refer to expression-trait association models with only one regressor
 if (!is.na(stage2_a$variance_theta)) {
   wald_direct_a <- stage2_a$theta^2 / stage2_a$variance_theta
   pvalue_direct_a <- stats::pchisq(wald_direct_a, 1, lower.tail = FALSE)
@@ -266,7 +267,7 @@ if (!is.na(stage2_co$variance_theta)) {
   pvalue_direct_co <- NA
 }
 
-# The "full" variables refer to the COWAS proteome-disease association model, which has three terms
+# The "full" variables refer to the COWAS expression-trait association model, which has three regressors
 if (!anyNA(stage2_abc$variance_theta)) {
   wald_full_a <- stage2_abc$theta[1,1]^2 / stage2_abc$variance_theta[1,1]
   pvalue_full_a <- stats::pchisq(wald_full_a, 1, lower.tail = FALSE)

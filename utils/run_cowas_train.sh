@@ -11,14 +11,14 @@
 
 # A file that lists pairs of proteins for which to train COWAS models.
 # This should be a text file with one tab-separated pair of protein names per line.
-PAIRS=pairs/all_protein_pairs.tsv
+PAIRS=pairs/hippie_pairs_autosomal.tsv
 
 # Folder with files listing the variants to use as predictors for each protein.
 # Files should be named <PROTEIN_NAME>.variants.txt and contain one column of variant IDs.
-PREDICTORS=predictors_sis
+PREDICTORS=predictors_top_cis_beta_pd
 
 # Base name of the genotype data (in PLINK 2.0 format)
-GENOTYPES=data_cleaned/genotypes
+GENOTYPES=data_cleaned/genotypes_subset_for_PD
 
 # File name of the expression data (in plain text, long format)
 EXPRESSION=data_cleaned/proteins.tsv
@@ -27,16 +27,16 @@ EXPRESSION=data_cleaned/proteins.tsv
 COVARIATES=data_cleaned/covariates.tsv
 
 # Folder for storing COWAS weights
-OUT_DIR=cowas_weights
+OUT_DIR=gwas_specific_weights/weights_cis_beta_lasso_pd
 
 # The type of model to fit.
 # Valid options are stepwise, ridge, lasso, and elastic_net.
-MODEL=elastic_net
+MODEL=lasso
 
 # Number of cores to use for parallelization
 CORES=32
 
-# Correlation threshold for expression and co-expression prediction models
+# Correlation threshold for expression and co-expression imputation models
 COR_THRESHOLD=0.03
 
 # -------------------------------------------------------------------------------------------------

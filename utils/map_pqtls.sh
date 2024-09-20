@@ -9,7 +9,7 @@
 #SBATCH --mail-user=malak039@umn.edu
 #SBATCH -o logs/%j.out
 
-mkdir pqtls
+mkdir pqtl_associations
 
 # Perform association testing
 plink2 --pfile data_cleaned/genotypes \
@@ -28,7 +28,7 @@ plink2 --pfile data_cleaned/genotypes \
 # Rename and move the results files
 for FILENAME in *.glm.linear; do
     NEWFILE=$(echo ${FILENAME} | sed 's/TEMP.//' | sed 's/.glm.linear/.sumstats.tsv/')
-    mv ${FILENAME} pqtls/${NEWFILE}
+    mv ${FILENAME} pqtl_associations/${NEWFILE}
 done
 
 # GLIPR1 only has 106 non-missing samples, and within that subset some covariates are constant or collinear.
@@ -47,7 +47,7 @@ plink2 --pfile data_cleaned/genotypes \
        --vif 100000 \
        --out TEMP
 
-mv TEMP.GLIPR1.glm.linear pqtls/GLIPR1.sumstats.tsv
+mv TEMP.GLIPR1.glm.linear pqtl_associations/GLIPR1.sumstats.tsv
 
 rm TEMP*
 

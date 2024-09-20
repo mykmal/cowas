@@ -167,6 +167,13 @@ Rscript --vanilla qc/preprocess_ukb_helper3.R
 plink2 --pfile data_cleaned/genotypes \
        --threads 30 \
        --memory 120000 \
+       --extract TEMP_mutual_LDL_variants.txt \
+       --make-pgen psam-cols=sex \
+       --out data_cleaned/genotypes_subset_for_LDL
+
+plink2 --pfile data_cleaned/genotypes \
+       --threads 30 \
+       --memory 120000 \
        --extract TEMP_mutual_AD_variants.txt \
        --make-pgen psam-cols=sex \
        --out data_cleaned/genotypes_subset_for_AD
@@ -177,13 +184,6 @@ plink2 --pfile data_cleaned/genotypes \
        --extract TEMP_mutual_PD_variants.txt \
        --make-pgen psam-cols=sex \
        --out data_cleaned/genotypes_subset_for_PD
-
-plink2 --pfile data_cleaned/genotypes \
-       --threads 30 \
-       --memory 120000 \
-       --extract TEMP_mutual_LDL_variants.txt \
-       --make-pgen psam-cols=sex \
-       --out data_cleaned/genotypes_subset_for_LDL
 
 rm TEMP*
 

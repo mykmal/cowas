@@ -11,27 +11,28 @@
 
 # A file that lists pairs of proteins for which to perform the COWAS association test.
 # This should be a text file with one tab-separated pair of protein names per line.
-PAIRS=pairs/all_protein_pairs.tsv
+PAIRS=pairs/hippie_pairs_autosomal.tsv
 
 # File name of the GWAS summary dataset to use
-GWAS=data_cleaned/Bellenguez_2022_AD_GWAS.tsv
+GWAS=data_cleaned/Nalls_2019_PD_GWAS.tsv
 
-# Path to a folder containing pre-trained COWAS model weights, as saved by train_cowas.R
-WEIGHTS=cowas_weights
+# Path to a folder containing trained COWAS model weights, as saved by train_cowas.R
+WEIGHTS=gwas_specific_weights/weights_cis_beta_lasso_pd
 
-# Base name of the genotype data to use as an LD reference panel (in PLINK 2.0 format)
-GENOTYPES=data_cleaned/genotypes_subset_for_AD
+# Base name of the genotype data to use for computing an LD reference panel (in PLINK 2.0 format)
+GENOTYPES=data_cleaned/genotypes_subset_for_PD
 
 # Folder with files listing the variants used as predictors for each protein.
 # This is only for filtering the genotypes before loading them into cowas.R, in order to decrease runtime.
-PREDICTORS=predictors_sis
+PREDICTORS=predictors_top_cis_beta_pd
 
 # File name to which COWAS test results will be written
-OUT_FILE=cowas_results.tsv
+OUT_FILE=association_results/results_cis_beta_lasso_pd.tsv
 
 # Number of cores to use for parallelization
 CORES=32
 
+# -------------------------------------------------------------------------------------------------
 
 printf "Runtime parameters:\n"
 printf "PAIRS = ${PAIRS}\n"
@@ -49,13 +50,13 @@ export OMP_NUM_THREADS=${CORES}
 
 if ( [ ! -f ${OUT_FILE} ] ); then
 printf "ID_A\tID_B\tN_REFERENCE\tN_GWAS\t\
-THETA_DIRECT_A\tVAR_THETA_DIRECT_A\tPVAL_THETA_DIRECT_A\t\
-THETA_DIRECT_B\tVAR_THETA_DIRECT_B\tPVAL_THETA_DIRECT_B\t\
-THETA_DIRECT_CO\tVAR_THETA_DIRECT_CO\tPVAL_THETA_DIRECT_CO\t\
-THETA_FULL_A\tVAR_THETA_FULL_A\tPVAL_THETA_FULL_A\t\
-THETA_FULL_B\tVAR_THETA_FULL_B\tPVAL_THETA_FULL_B\t\
-THETA_FULL_CO\tVAR_THETA_FULL_CO\tPVAL_THETA_FULL_CO\t\
-FSTAT_FULL\tPVAL_FSTAT_FULL\n" > ${OUT_FILE}
+THETA_MARGINAL_A\tVAR_THETA_MARGINAL_A\tPVAL_THETA_MARGINAL_A\t\
+THETA_MARGINAL_B\tVAR_THETA_MARGINAL_B\tPVAL_THETA_MARGINAL_B\t\
+THETA_MARGINAL_CO\tVAR_THETA_MARGINAL_CO\tPVAL_THETA_MARGINAL_CO\t\
+THETA_JOINT_A\tVAR_THETA_JOINT_A\tPVAL_THETA_JOINT_A\t\
+THETA_JOINT_B\tVAR_THETA_JOINT_B\tPVAL_THETA_JOINT_B\t\
+THETA_JOINT_CO\tVAR_THETA_JOINT_CO\tPVAL_THETA_JOINT_CO\t\
+FSTAT_JOINT\tPVAL_FSTAT_JOINT\n" > ${OUT_FILE}
 fi
 
 # Loop through all protein pairs in the $PAIRS file
@@ -75,7 +76,7 @@ fi
 COWAS_TEMP=TEMP-${PROTEIN_A}-${PROTEIN_B}
 mkdir ${COWAS_TEMP}
 
-# Extract genotypes for variants present in the pre-trained models, to use as an LD reference panel
+# Extract genotypes for variants present in the trained models, to use for computing an LD reference panel
 plink2 --pfile ${GENOTYPES} \
        --silent \
        --threads ${CORES} \

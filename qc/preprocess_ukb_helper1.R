@@ -65,7 +65,7 @@ for (column in names(olink_data)[-1]) {
   }
 }
 
-# Create a file listing the pairs of proteins to analyze
+# Create a table listing the pairs of proteins to analyze
 protein_pairs <- t(combn(names(olink_data)[-1], 2))
 
 # Put the samples in a format compatible with PLINK's --keep command

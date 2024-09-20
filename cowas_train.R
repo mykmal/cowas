@@ -248,7 +248,7 @@ TrainStepwise <- function(z_a, z_b, z_both, x) {
   step_co <- stats::step(lm_null_co, scope = formula_full_co, direction = "both", trace = 0)
   
   # Store fitted model weights
-  # The intercept is ignored because it will be numerically zero
+  # The intercept is ignored because it only captures non-genetic effects
   model_a_weights <- coef(step_a)[-1]
   model_b_weights <- coef(step_b)[-1]
   model_co_weights <- coef(step_co)[-1]
@@ -292,7 +292,7 @@ TrainGlmnet <- function(z_a, z_b, z_both, x, alpha) {
                         parallel = use_cores)
   
   # Store fitted model weights
-  # The intercept is ignored because it will be numerically zero
+  # The intercept is ignored because it only captures non-genetic effects
   model_a_weights <- coef(model_a, s = "lambda.min")[-1, ]
   model_b_weights <- coef(model_b, s = "lambda.min")[-1, ]
   model_co_weights <- coef(model_co, s = "lambda.min")[-1, ]
