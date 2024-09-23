@@ -45,8 +45,8 @@ option_list <- list(
                 here must match the COWAS model effect alleles. This can be ensured by creating the
                 LD reference genotype file using PLINK's `export A` command with the `export-allele`
                 option set to the ALT alleles listed in --alleles. Moreover, variant IDs in the header
-                must be consistent with those used in COWAS weights and in the LD reference. (In our
-                provided weights, variants are denoted by rsID.) [required]"
+                must be consistent with those used in COWAS weights and in the GWAS. (In our provided
+                weights, variants are denoted by rsID.) [required]"
   ),
   make_option(
     c("--out"),
@@ -148,8 +148,8 @@ gwas[, c("effect_allele", "other_allele", "REF", "ALT") := NULL]
 
 # Compute an LD reference matrix from normalized genotypes ----------------------------------------
 
-# Fill in missing calls with the mode for each variant.
-# This is a reasonable imputation method when the missingness rate is very low.
+# Fill in missing calls with the mode for each variant
+# This is a reasonable imputation method when the missingness rate is very low
 for (rsid in names(genotypes)) {
   
   mode <- names(which.max(table(genotypes[[rsid]])))
@@ -178,7 +178,7 @@ n_gwas <- median(gwas$n_samples)
 n_reference <- nrow(genotypes)
 
 # Compute the pseudocorrelation between each variant and the outcome trait
-genotype_trait_correlations <- gwas$z_score / sqrt(n_gwas - 2 + gwas$z_score^2)
+genotype_trait_correlations <- gwas$z_score / sqrt(n_gwas - 1 + gwas$z_score^2)
 
 # Convert from data table to matrix so that we can perform matrix operations
 genotypes <- as.matrix(genotypes)
@@ -190,8 +190,9 @@ ld_matrix <- t(genotypes) %*% genotypes / n_reference
 # Compute association between imputed (co-)expression and the trait -------------------------------
 
 # Formulas for computing PWAS/COWAS effect sizes and their variances
-compute_effect_size <- function(qtl_weights, n_features) {
-  # This formula is derived from ordinary least squares (OLS) regression
+# See our paper for derivations
+compute_effect_size <- function(qtl_weights, n_terms) {
+
   product <- t(qtl_weights) %*% ld_matrix %*% qtl_weights
   
   # Check if the product matrix is invertible
@@ -203,13 +204,12 @@ compute_effect_size <- function(qtl_weights, n_features) {
   
   product_inverted <- solve(product)
   
-  # See our paper for the derivation of the following three expressions -- it's too long to explain here
   theta <- product_inverted %*% t(qtl_weights) %*% genotype_trait_correlations
   
   rss <- n_gwas * (1 - 2 * t(genotype_trait_correlations) %*% qtl_weights %*% theta + t(theta) %*% product %*% theta) - 1
   rss <- as.numeric(rss)
   
-  variance_theta <- product_inverted * rss / ((n_gwas - n_features - 1) * n_gwas)
+  variance_theta <- product_inverted * rss / (n_gwas * (n_gwas - n_terms))
   
   return(list(theta = theta,
               variance_theta = variance_theta,
@@ -223,17 +223,11 @@ weights_padded_a[names(weights_a)] <- weights_a
 weights_padded_b[names(weights_b)] <- weights_b
 weights_padded_co[names(weights_co)] <- weights_co
 
-# Save the number of variants with nonzero weights in each model
-n_nonzero_a <- sum(weights_a != 0)
-n_nonzero_b <- sum(weights_b != 0)
-n_nonzero_co <- sum(weights_co != 0)
-
 # Compute effect sizes and variances for each model
-stage2_a <- compute_effect_size(as.matrix(weights_padded_a), n_nonzero_a)
-stage2_b <- compute_effect_size(as.matrix(weights_padded_b), n_nonzero_b)
-stage2_co <- compute_effect_size(as.matrix(weights_padded_co), n_nonzero_co)
-stage2_abc <- compute_effect_size(cbind(weights_padded_a, weights_padded_b, weights_padded_co),
-                                  n_nonzero_a + n_nonzero_b + n_nonzero_co)
+stage2_a <- compute_effect_size(as.matrix(weights_padded_a), 2)
+stage2_b <- compute_effect_size(as.matrix(weights_padded_b), 2)
+stage2_co <- compute_effect_size(as.matrix(weights_padded_co), 2)
+stage2_abc <- compute_effect_size(cbind(weights_padded_a, weights_padded_b, weights_padded_co), 4)
 
 # Perform association tests -----------------------------------------------------------------------
 
@@ -284,7 +278,7 @@ if (!anyNA(stage2_abc$variance_theta)) {
 # Perform an F-test to determine if the COWAS association model is significantly better than a null model
 if (!is.na(stage2_abc$rss)) {
   stage2_abc$rss <- as.numeric(stage2_abc$rss)
-  f_statistic <- ((n_gwas - 4) * (n_gwas - 1 - stage2_abc$rss)) / (3 * stage2_abc$rss)
+  f_statistic <- ((n_gwas - 4) / (3 * stage2_abc$rss)) * (n_gwas - 1 - stage2_abc$rss)
   f_pvalue <- stats::pf(f_statistic, 3, n_gwas - 4, lower.tail = FALSE)
 } else {
   f_statistic <- f_pvalue <- NA
