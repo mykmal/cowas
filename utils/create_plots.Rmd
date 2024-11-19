@@ -1,7 +1,7 @@
 ---
 title: "COWAS plots"
 author: "Mykhaylo M. Malakhov"
-date: "2024-09-18"
+date: "2024-11-17"
 output: html_document
 ---
 
@@ -11,6 +11,7 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(VennDiagram)
+library(igraph)
 ```
 
 This R Markdown file provides code for cleaning COWAS results and creating the plots included in our paper.
@@ -422,6 +423,10 @@ ldl_bonferroni_individual <- 0.05 / length(unique(c(results_ldl$ID_A, results_ld
 
 sig_ldl_global <- results_ldl[PVAL_FSTAT_JOINT < ldl_bonferroni_pairs, ]
 sig_ldl_interaction <- results_ldl[PVAL_THETA_JOINT_CO < ldl_bonferroni_pairs, ]
+
+sig_ldl_pwas_a <- results_ldl[PVAL_THETA_MARGINAL_A < ldl_bonferroni_individual, ]
+sig_ldl_pwas_b <- results_ldl[PVAL_THETA_MARGINAL_B < ldl_bonferroni_individual, ]
+
 sig_ldl_pwas <- results_ldl[PVAL_THETA_MARGINAL_A < ldl_bonferroni_individual | 
                               PVAL_THETA_MARGINAL_B < ldl_bonferroni_individual, ]
 
@@ -436,6 +441,10 @@ ad_bonferroni_individual <- 0.05 / length(unique(c(results_ad$ID_A, results_ad$I
 
 sig_ad_global <- results_ad[PVAL_FSTAT_JOINT < ad_bonferroni_pairs, ]
 sig_ad_interaction <- results_ad[PVAL_THETA_JOINT_CO < ad_bonferroni_pairs, ]
+
+sig_ad_pwas_a <- results_ad[PVAL_THETA_MARGINAL_A < ad_bonferroni_individual, ]
+sig_ad_pwas_b <- results_ad[PVAL_THETA_MARGINAL_B < ad_bonferroni_individual, ]
+
 sig_ad_pwas <- results_ad[PVAL_THETA_MARGINAL_A < ad_bonferroni_individual | 
                             PVAL_THETA_MARGINAL_B < ad_bonferroni_individual, ]
 
@@ -450,6 +459,10 @@ pd_bonferroni_individual <- 0.05 / length(unique(c(results_pd$ID_A, results_pd$I
 
 sig_pd_global <- results_pd[PVAL_FSTAT_JOINT < pd_bonferroni_pairs, ]
 sig_pd_interaction <- results_pd[PVAL_THETA_JOINT_CO < pd_bonferroni_pairs, ]
+
+sig_pd_pwas_a <- results_pd[PVAL_THETA_MARGINAL_A < pd_bonferroni_individual, ]
+sig_pd_pwas_b <- results_pd[PVAL_THETA_MARGINAL_B < pd_bonferroni_individual, ]
+
 sig_pd_pwas <- results_pd[PVAL_THETA_MARGINAL_A < pd_bonferroni_individual | 
                             PVAL_THETA_MARGINAL_B < pd_bonferroni_individual, ]
 
@@ -479,7 +492,7 @@ venn.diagram(x = list(global = sig_ldl_global$ID,
              resolution = 600,
              imagetype = "png",
              
-             fill = c("#F748A5", "#e69f00", "#359B73"),
+             fill = c("#228833", "#EE6677", "#CCBB44"),
              alpha = 0.8,
              cex = 2,
              fontface = "plain",
@@ -503,7 +516,7 @@ venn.diagram(x = list(global = sig_ad_global$ID,
              resolution = 600,
              imagetype = "png",
              
-             fill = c("#F748A5", "#e69f00", "#359B73"),
+             fill = c("#228833", "#EE6677", "#CCBB44"),
              alpha = 0.8,
              cex = 2,
              fontface = "plain",
@@ -527,7 +540,7 @@ venn.diagram(x = list(global = sig_pd_global$ID,
              resolution = 600,
              imagetype = "png",
              
-             fill = c("#F748A5", "#e69f00", "#359B73"),
+             fill = c("#228833", "#EE6677", "#CCBB44"),
              alpha = 1,
              cex = 2,
              fontface = "plain",
@@ -574,5 +587,44 @@ create_heatmap <- function(original_table, filename, dimx, dimy, cutoff, xsize) 
 create_heatmap(sig_ldl_any, "heatmap_ldl.png", 8500, 2000, 20, 7)
 create_heatmap(sig_ad_any, "heatmap_ad.png", 6000, 2000, 20, 10)
 create_heatmap(sig_pd_any, "heatmap_pd.png", 4000, 2000, 5, 10)
+```
+
+
+## Create network diagrams
+
+```{r}
+create_network <- function(interaction, global, pwas_a, pwas_b, filename, nodesize, fontsize, width) {
+  interaction[, color := "#EE6677"]
+  global[, color := "#228833"]
+  
+  edge_list <- rbind(interaction, global)
+  network <- graph_from_data_frame(d = edge_list, directed = FALSE)
+  
+  layout <- layout_with_kk(network)
+  
+  pwas_sig_list <- unique(c(pwas_a$ID_A, pwas_b$ID_B))
+  V(network)$color <- ifelse(names(V(network)) %in% pwas_sig_list, "#CCBB44", "#BBBBBB")
+  
+  png(paste0("figures_tables/plots/", filename), 6400, 6400)
+  par(mar=c(0,0,0,0))
+  plot(network,
+       vertex.label.family = "sans",
+       vertex.label.color = "black",
+       vertex.label.cex = fontsize,
+       vertex.size = nodesize,
+       vertex.color = V(network)$color,
+       vertex.frame.color = "black",
+       edge.color = edge_list$color,
+       edge.width = width,
+       layout = layout)
+  dev.off()
+}
+
+create_network(sig_ldl_interaction, sig_ldl_global, sig_ldl_pwas_a, sig_ldl_pwas_b,
+               "network_ldl.png", nodesize = 5, fontsize = 2, width = 10)
+create_network(sig_ad_interaction, sig_ad_global, sig_ad_pwas_a, sig_ad_pwas_b,
+               "network_ad.png", nodesize = 12, fontsize = 5, width = 20)
+create_network(sig_pd_interaction, sig_pd_global, sig_pd_pwas_a, sig_pd_pwas_b,
+               "network_pd.png", nodesize = 20, fontsize = 8, width = 25)
 ```
 
