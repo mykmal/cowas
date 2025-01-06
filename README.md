@@ -2,8 +2,8 @@
 
 This repository provides a set of tools for conducting co-expression-wide association studies (COWAS). The goal of COWAS is to identify pairs of genes or proteins whose genetic component of co-expression is associated with complex traits. By considering the genetic regulation of both expression and co-expression, our method is able to boost power relative to standard TWAS and PWAS while also disentangling direct and interaction effects.
 
-GitHub repo: https://github.com/mykmal/cowas
-Model weights: https://www.synapse.org/cowas
+GitHub repo: https://github.com/mykmal/cowas  
+Model weights: https://www.synapse.org/cowas  
 Paper: https://doi.org/10.1101/2024.10.02.24314813
 
 COWAS is run on one pair of genes or proteins at a time. First, three models are trained on an individual-level reference dataset. One model predicts the expression of the first gene/protein, another model predicts the expression of the second gene/protein, and the third model predicts the conditional co-expression of the two genes/proteins. Then the fitted model weights are used to impute expression and co-expression into GWAS data for any trait of interest. Finally, the outcome trait is jointly tested for association with the imputed expression and co-expression levels. We also provide trained imputation models for COWAS, enabling association testing to be performed using only GWAS summary statistics and a linkage disequilibrium (LD) reference panel.
@@ -135,9 +135,9 @@ Run the shell script `qc/preprocess_ukb.sh` from within the main COWAS folder to
 
 1. Create the file `pairs/all_protein_pairs.tsv` listing all possible pairs of proteins that have data available, with one pair per row.
 2. Filter the main dataset to obtain a set of high-quality, unrelated, White British samples with per-sample genotyping rate > 99%. Filter the proteomic data to obtain the set of samples assessed at the initial visit. Then subset the genotype data, proteomic data, and covariate data to a common set of samples.
-3. Remove variants from the UK Biobank genotype data that have a missingness rate > 10%, have an MAC < 100, have an MAF < 1%, fail a Hardy-Weinberg equilibrium test ($P < 10^{-15}$), lack an rsID, or are palindromic. Next, prune the remaining variants to $R^2 < 0.8$ with a 1,000 bp window and a step size of 100 bp. The quality-controlled genotype data is saved to the files `genotypes.pgen` + `genotypes.psam` + `genotypes.pvar` within the subfolder `data_cleaned`.
+3. Remove variants from the UK Biobank genotype data that have a missingness rate $> 10\%$, have an MAC $< 100$, have an MAF $< 1\%$, fail a Hardy-Weinberg equilibrium test (*P* $< 10^{-15}$), lack an rsID, or are palindromic. Next, prune the remaining variants to $R^2 < 0.8$ with a 1,000 bp window and a step size of 100 bp. The quality-controlled genotype data is saved to the files `genotypes.pgen` + `genotypes.psam` + `genotypes.pvar` within the subfolder `data_cleaned`.
 4. Compute the top 20 genetic principal components from the quality-controlled genotype data. Following best practices, before computing PCs we further remove all variants in regions of long-range LD and then prune the remaining ones to a strict threshold of $R^2 < 0.1$ with a 1,000 bp window and a step size of 100 bp.
-5. Create the file `data_cleaned/covariates.tsv` with one row per sample and 48 columns for sample ID, age, age^2, sex, age * sex, age^2 * sex, UK Biobank assessment center (coded as 21 binary dummy variables), genotyping array (binary), and the first 20 genetic PCs. Save the protein NPX levels to the file `data_cleaned/proteins.tsv` with one row per sample and one column per protein.
+5. Create the file `data_cleaned/covariates.tsv` with one row per sample and 48 columns for sample ID, age, age$^2$, sex, age * sex, age$^2$ * sex, UK Biobank assessment center (coded as 21 binary dummy variables), genotyping array (binary), and the first 20 genetic PCs. Save the protein NPX levels to the file `data_cleaned/proteins.tsv` with one row per sample and one column per protein.
 6. For each GWAS, remove any rows that have duplicated rsIDs. After this, subset the quality-controlled genotype data and the GWAS data to a common set of variants, and flip the GWAS effect alleles and effect sizes to match ALT alleles in the genotype data. The fully processed GWAS summary statistics, as well as copies of the genotype data subset to variants present in each GWAS, are saved to the subfolder `data_cleaned`.
 
 The `data_raw` subfolder can be deleted after the preprocessing script successfully finishes.
