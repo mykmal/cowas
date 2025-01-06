@@ -45,30 +45,32 @@ In addition to the above three ingredients, COWAS will ask for the name of each 
 
 Once COWAS finishes running, it will save association testing results to a tab-separated file with one line per pair. The output file columns have the following definitions:
 
-1. ID_A: the name of the first gene/protein in the pair
-2. ID_B: the name of the second gene/protein in the pair
-3. N_REFERENCE: the sample size of the LD reference panel
-4. N_GWAS: the sample size of the outcome trait GWAS
-5. THETA_MARGINAL_A: the marginal effect of the first gene/protein on the trait (identical to standard TWAS/PWAS)
-6. VAR_THETA_MARGINAL_A: the variance of the marginal effect size for the first gene/protein
-7. PVAL_THETA_MARGINAL_A: the *P* value of the marginal effect of the first gene/protein
-8. THETA_MARGINAL_B: the marginal effect of the second gene/protein on the trait (identical to standard TWAS/PWAS)
-9. VAR_THETA_MARGINAL_B: the variance of the marginal effect size for the second gene/protein
-10. PVAL_THETA_MARGINAL_B: the *P* value of the marginal effect of the second gene/protein
-11. THETA_MARGINAL_CO: the marginal effect of co-expression on the trait
-12. VAR_THETA_MARGINAL_CO: the variance of the marginal effect size of co-expression
-13. PVAL_THETA_MARGINAL_CO: the *P* value of the marginal effect of co-expression
-14. THETA_JOINT_A: the effect of the first gene/protein on the trait in a joint COWAS model
-15. VAR_THETA_JOINT_A: the variance of the first gene/protein effect size in a joint COWAS model
-16. PVAL_THETA_JOINT_A: the *P* value of the first gene/protein in a joint COWAS model
-17. THETA_JOINT_B: the effect of the second gene/protein on the trait in a joint COWAS model
-18. VAR_THETA_JOINT_B: the variance of the second gene/protein effect size in a joint COWAS model
-19. PVAL_THETA_JOINT_B: the *P* value of the second gene/protein in a joint COWAS model
-20. THETA_JOINT_CO: the effect of co-expression on the trait in a joint COWAS model
-21. VAR_THETA_JOINT_CO: the variance of the effect size of co-expression in a joint COWAS model
-22. PVAL_THETA_JOINT_CO: the *P* value of co-expression in a joint COWAS model
-23. FSTAT_JOINT: an *F* statistic testing for overall significance of the joint COWAS model
-24. PVAL_FSTAT_JOINT: the *P* value for overall significance of the joint COWAS model
+| Column                 | Description |
+| ---------------------- | ----------- |
+| ID_A                   | Name of the first gene/protein in the pair |
+| ID_B                   | Name of the second gene/protein in the pair |
+| N_REFERENCE            | Sample size of the LD reference panel |
+| N_GWAS                 | Sample size of the outcome trait GWAS |
+| THETA_MARGINAL_A       | Marginal effect of the first gene/protein on the trait (identical to standard TWAS/PWAS) |
+| VAR_THETA_MARGINAL_A   | Variance of the marginal effect size for the first gene/protein |
+| PVAL_THETA_MARGINAL_A  | *P* value of the marginal effect of the first gene/protein |
+| THETA_MARGINAL_B       | Marginal effect of the second gene/protein on the trait (identical to standard TWAS/PWAS) |
+| VAR_THETA_MARGINAL_B   | Variance of the marginal effect size for the second gene/protein |
+| PVAL_THETA_MARGINAL_B  | *P* value of the marginal effect of the second gene/protein |
+| THETA_MARGINAL_CO      | Marginal effect of co-expression on the trait |
+| VAR_THETA_MARGINAL_CO  | Variance of the marginal effect size of co-expression |
+| PVAL_THETA_MARGINAL_CO | *P* value of the marginal effect of co-expression |
+| THETA_JOINT_A          | Effect of the first gene/protein on the trait in a joint COWAS model |
+| VAR_THETA_JOINT_A      | Variance of the first gene/protein effect size in a joint COWAS model |
+| PVAL_THETA_JOINT_A     | *P* value of the first gene/protein in a joint COWAS model |
+| THETA_JOINT_B          | Effect of the second gene/protein on the trait in a joint COWAS model |
+| VAR_THETA_JOINT_B      | Variance of the second gene/protein effect size in a joint COWAS model |
+| PVAL_THETA_JOINT_B     | *P* value of the second gene/protein in a joint COWAS model |
+| THETA_JOINT_CO         | Effect of co-expression on the trait in a joint COWAS model |
+| VAR_THETA_JOINT_CO     | Variance of the effect size of co-expression in a joint COWAS model |
+| PVAL_THETA_JOINT_CO    | *P* value of co-expression in a joint COWAS model |
+| FSTAT_JOINT            | *F* statistic for testing the overall significance of the joint COWAS model |
+| PVAL_FSTAT_JOINT       | *P* value for overall significance of the joint COWAS model |
 
 The columns named PVAL_FSTAT_JOINT and PVAL_THETA_JOINT_CO correspond to *P* values for the COWAS global test and the COWAS interaction test described in our paper, respectively. The *P* values in columns PVAL_THETA_JOINT_A and PVAL_THETA_JOINT_B can reveal whether each gene/protein is significant after accounting for the other gene/protein and their interaction, while the *P* values in columns PVAL_THETA_MARGINAL_A and PVAL_THETA_MARGINAL_B are equivalent to what one would get from a standard TWAS/PWAS analysis.
 
@@ -78,15 +80,17 @@ If you have access to a dataset with individual-level genotype data and gene or 
 
 The `cowas_train.R` script will save fitted model weights to an RDS file named `<ID_A>-<ID_B>.weights.rds` in the specified output folder. The RDS file stores a list of three named vectors, which contain genetic variant weights for the three models. In addition to saving model weights, `cowas_train.R` will also write model performance metrics to a tab-separated file named `performance_metrics.tsv` within the specified output directory. (Note that if this file already exists, a new line will be appended to its end.) The performance metrics file contains one line for each pair and the following nine columns:
 
-1. ID_A: the name or identifier of the first gene/protein
-2. ID_B: the name or identifier of the second gene/protein
-3. SAMPLE_SIZE: the sample size of the training data
-4. NFEATURES_A: the number of variants with nonzero weights in the <ID_A> model
-5. CORRELATION_A: the correlation between measured and predicted expression for <ID_A>, evaluated on a held-out 20% test set
-6. NFEATURES_B: the number of variants with nonzero weights in the <ID_B> model
-7. CORRELATION_B: the correlation between measured and predicted expression for <ID_B>, evaluated on a held-out 20% test set
-8. NFEATURES_CO: the number of variants with nonzero weights in the co-expression model
-9. CORRELATION_CO: the correlation between estimated and predicted co-expression, evaluated on a held-out 20% test set
+| Column         | Description |
+| -------------- | ----------- |
+| ID_A           | Name or identifier of the first gene/protein |
+| ID_B           | Name or identifier of the second gene/protein |
+| SAMPLE_SIZE    | Sample size of the training data |
+| NFEATURES_A    | Number of variants with nonzero weights in the <ID_A> model |
+| CORRELATION_A  | Correlation between measured and predicted expression for <ID_A>, evaluated on a held-out 20% test set |
+| NFEATURES_B    | Number of variants with nonzero weights in the <ID_B> model |
+| CORRELATION_B  | Correlation between measured and predicted expression for <ID_B>, evaluated on a held-out 20% test set |
+| NFEATURES_CO   | Number of variants with nonzero weights in the co-expression model |
+| CORRELATION_CO | Correlation between estimated and predicted co-expression, evaluated on a held-out 20% test set |
 
 We also provide the batch script `run_cowas_train.sh`, located in the `utils` folder of this repository, to automate the model training process for a user-specified list of gene or protein pairs. For each pair, this shell script will extract predictor variants from a PLINK-format file, convert their genotypes to the required format for COWAS, and then run `cowas_train.R`. Instructions are provided in comments at the top of the script.
 
@@ -137,7 +141,7 @@ Run the shell script `qc/preprocess_ukb.sh` from within the main COWAS folder to
 2. Filter the main dataset to obtain a set of high-quality, unrelated, White British samples with per-sample genotyping rate > 99%. Filter the proteomic data to obtain the set of samples assessed at the initial visit. Then subset the genotype data, proteomic data, and covariate data to a common set of samples.
 3. Remove variants from the UK Biobank genotype data that have a missingness rate $> 10\%$, have an MAC $< 100$, have an MAF $< 1\%$, fail a Hardy-Weinberg equilibrium test (*P* $< 10^{-15}$), lack an rsID, or are palindromic. Next, prune the remaining variants to $R^2 < 0.8$ with a 1,000 bp window and a step size of 100 bp. The quality-controlled genotype data is saved to the files `genotypes.pgen` + `genotypes.psam` + `genotypes.pvar` within the subfolder `data_cleaned`.
 4. Compute the top 20 genetic principal components from the quality-controlled genotype data. Following best practices, before computing PCs we further remove all variants in regions of long-range LD and then prune the remaining ones to a strict threshold of $R^2 < 0.1$ with a 1,000 bp window and a step size of 100 bp.
-5. Create the file `data_cleaned/covariates.tsv` with one row per sample and 48 columns for sample ID, age, age$^2$, sex, age * sex, age$^2$ * sex, UK Biobank assessment center (coded as 21 binary dummy variables), genotyping array (binary), and the first 20 genetic PCs. Save the protein NPX levels to the file `data_cleaned/proteins.tsv` with one row per sample and one column per protein.
+5. Create the file `data_cleaned/covariates.tsv` with one row per sample and 48 columns for sample ID, age, age^2, sex, age \* sex, age^2 \* sex, UK Biobank assessment center (coded as 21 binary dummy variables), genotyping array (binary), and the first 20 genetic PCs. Save the protein NPX levels to the file `data_cleaned/proteins.tsv` with one row per sample and one column per protein.
 6. For each GWAS, remove any rows that have duplicated rsIDs. After this, subset the quality-controlled genotype data and the GWAS data to a common set of variants, and flip the GWAS effect alleles and effect sizes to match ALT alleles in the genotype data. The fully processed GWAS summary statistics, as well as copies of the genotype data subset to variants present in each GWAS, are saved to the subfolder `data_cleaned`.
 
 The `data_raw` subfolder can be deleted after the preprocessing script successfully finishes.
