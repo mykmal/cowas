@@ -79,6 +79,14 @@ option_list <- list(
     help = "Perform a rank-based inverse-normal transformation (aka quantile normalization)
                 on the expression phenotypes before fitting models. If FALSE, expression values
                 will simply be centered and scaled. [default: `%default`]"
+  ),
+  make_option(
+    c("--conditional_covariance"),
+    action = "store_true",
+    default = TRUE,
+    help = "Should co-expression be estimated as conditional covariance? The default value of TRUE
+                fits the COWAS model described in our paper. Setting this parameter to FALSE will
+                instead model co-expression as an interaction term. [default: `%default`]"
   )
 )
 
@@ -233,14 +241,19 @@ TrainStepwise <- function(z_a, z_b, z_both, x) {
   step_a <- stats::step(lm_null_a, scope = formula_full_a, direction = "both", trace = 0)
   step_b <- stats::step(lm_null_b, scope = formula_full_b, direction = "both", trace = 0)
   
-  # Compute the conditional co-expression
-  pred_a <- predict(object = step_a, newdata = data_a, type = "response")
-  pred_b <- predict(object = step_b, newdata = data_b, type = "response")
-  x_co <- (data_a$x_a - pred_a) * (data_b$x_b - pred_b)
+  # Compute the conditional co-expression if requested, otherwise create an interaction term
+  if (opt$conditional_covariance == TRUE) {
+    pred_a <- predict(object = step_a, newdata = data_a, type = "response")
+    pred_b <- predict(object = step_b, newdata = data_b, type = "response")
+    x_co <- (data_a$x_a - pred_a) * (data_b$x_b - pred_b)
+    rm(pred_a, pred_b)
+  } else {
+    x_co <- data_a$x_a * data_b$x_b
+  }
   
   # Create a data table containing co-expression values and all variants
   data_co <- cbind(x_co, z_both)
-  rm(pred_a, pred_b, x_co, z_both)
+  rm(x_co, z_both)
   
   # Train a model to predict conditional co-expression
   formula_full_co <- as.formula(paste0("x_co ~ ", paste0(names(data_co)[-1], collapse = " + ")))
@@ -279,10 +292,15 @@ TrainGlmnet <- function(z_a, z_b, z_both, x, alpha) {
                        standardize = FALSE, intercept = TRUE,
                        parallel = use_cores)
   
-  # Compute the conditional co-expression
-  pred_a <- predict(object = model_a, newx = z_a, s = "lambda.min", type = "response")
-  pred_b <- predict(object = model_b, newx = z_b, s = "lambda.min", type = "response")
-  coex <- (x[, 1] - pred_a) * (x[, 2] - pred_b)
+  # Compute the conditional co-expression if requested, otherwise create an interaction term
+  if (opt$conditional_covariance == TRUE) {
+    pred_a <- predict(object = model_a, newx = z_a, s = "lambda.min", type = "response")
+    pred_b <- predict(object = model_b, newx = z_b, s = "lambda.min", type = "response")
+    coex <- (x[, 1] - pred_a) * (x[, 2] - pred_b)
+    rm(pred_a, pred_b)
+  } else {
+    coex <- x[, 1] * x[, 2]
+  }
   
   # Fit an elastic net model for the conditional co-expression of protein_a and protein_b
   model_co <- cv.glmnet(x = z_both, y = coex,
@@ -383,21 +401,27 @@ if (n_nonzero_a <= 0 || n_nonzero_b <= 0 || n_nonzero_co <= 0) {
   stop("At least one of the models in the pair ", opt$protein_a, "_", opt$protein_b, " has no nonzero weights. This pair will be skipped.")
 }
 
-# Get predicted values on the full data set, to use in computing full-sample conditional co-expression
-if (opt$model == "stepwise") {
-  imputed_full_a <- predict(object = full_output$model_a, newdata = genotypes_a,
-                            type = "response")
-  imputed_full_b <- predict(object = full_output$model_b, newdata = genotypes_b,
-                            type = "response")
+# If co-expression is being modeled as conditional covariance, calculate the full-sample conditional covariance
+if (opt$conditional_covariance == TRUE) {
+  # Get predicted values on the full data set
+  if (opt$model == "stepwise") {
+    imputed_full_a <- predict(object = full_output$model_a, newdata = genotypes_a,
+                              type = "response")
+    imputed_full_b <- predict(object = full_output$model_b, newdata = genotypes_b,
+                              type = "response")
+  } else {
+    imputed_full_a <- predict(object = full_output$model_a, newx = as.matrix(genotypes_a),
+                              s = "lambda.min", type = "response")
+    imputed_full_b <- predict(object = full_output$model_b, newx = as.matrix(genotypes_b),
+                              s = "lambda.min", type = "response")
+  }
+  
+  # Compute the conditional co-expression between the two proteins using full-sample model weights
+  set(x = expression, j = "coexpression", value = (expression[[opt$protein_a]] - imputed_full_a) * (expression[[opt$protein_b]] - imputed_full_b))
 } else {
-  imputed_full_a <- predict(object = full_output$model_a, newx = as.matrix(genotypes_a),
-                            s = "lambda.min", type = "response")
-  imputed_full_b <- predict(object = full_output$model_b, newx = as.matrix(genotypes_b),
-                            s = "lambda.min", type = "response")
+  # Otherwise, calculate the full-sample interaction term A*B
+  set(x = expression, j = "coexpression", value = expression[[opt$protein_a]] * expression[[opt$protein_b]])
 }
-
-# Compute the conditional co-expression between the two proteins using full-sample model weights
-set(x = expression, j = "coexpression", value = (expression[[opt$protein_a]] - imputed_full_a) * (expression[[opt$protein_b]] - imputed_full_b))
 
 # Check that the predicted expression values and estimated co-expression values are not constant
 if (sd(imputed_full_a) <= 0 || sd(imputed_full_b) <= 0 || sd(expression$coexpression) <= 0) {

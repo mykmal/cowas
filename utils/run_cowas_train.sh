@@ -39,6 +39,10 @@ CORES=32
 # Correlation threshold for expression and co-expression imputation models
 COR_THRESHOLD=0.03
 
+# Should co-expression be estimated as conditional covariance? If set to FALSE,
+# a simple interaction term will be used instead.
+COVARIANCE=TRUE
+
 # -------------------------------------------------------------------------------------------------
 
 printf "Runtime parameters:\n"
@@ -50,7 +54,8 @@ printf "COVARIATES = ${COVARIATES}\n"
 printf "OUT_DIR = ${OUT_DIR}\n"
 printf "MODEL = ${MODEL}\n"
 printf "CORES = ${CORES}\n"
-printf "COR_THRESHOLD = ${COR_THRESHOLD}\n\n"
+printf "COR_THRESHOLD = ${COR_THRESHOLD}\n"
+printf "COVARIANCE = ${COVARIANCE}\n\n"
 
 module load R/4.4.2-openblas-rocky8
 
@@ -126,7 +131,8 @@ cut -f 2,7- ${COWAS_TEMP}/${PROTEIN_B}.raw > ${COWAS_TEMP}/${PROTEIN_B}.gmatrix
                 --model ${MODEL} \
                 --cores ${CORES} \
                 --cor_threshold ${COR_THRESHOLD} \
-                --rank_normalize TRUE
+                --rank_normalize TRUE \
+                --conditional_covariance ${COVARIANCE}
 
 rm -rf ${COWAS_TEMP}
 
