@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task=128
 #SBATCH --mem=420gb
 #SBATCH --time=96:00:00
-#SBATCH --partition=agsmall,aglarge,ag2tb
+#SBATCH --partition=msismall,msilarge,msibigmem,msilong
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=malak039@umn.edu
 #SBATCH -o logs/%j.out

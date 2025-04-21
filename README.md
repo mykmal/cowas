@@ -1,4 +1,4 @@
-# COWAS: the co-expression-wide association study
+# COWAS: The co-expression-wide association study
 
 This repository provides a set of tools for conducting co-expression-wide association studies (COWAS). The goal of COWAS is to identify pairs of genes or proteins whose genetic component of co-expression is associated with complex traits. By considering the genetic regulation of both expression and co-expression, our method is able to boost power relative to standard TWAS and PWAS while also disentangling direct and interaction effects.
 
@@ -16,15 +16,15 @@ wget https://github.com/mykmal/cowas/archive/refs/heads/main.zip
 unzip main.zip && rm main.zip
 mv cowas-main cowas && cd cowas
 ```
-2. Launch R and install the required packages optparse and data.table. If you wish to train your own imputation models then also install the package glmnet. If you wish to utilize parallel computation in glmnet then also install the package doMC. We used R 4.4.0, optparse 1.7.5, data.table 1.15.4, glmnet 4.1.8, and doMC 1.3.8.
+2. Launch R and install the required packages optparse and data.table. If you wish to train your own imputation models then also install the package glmnet. If you wish to utilize parallel computation in glmnet then also install the package doMC. We used R 4.4.2, optparse 1.7.5, data.table 1.17.0, glmnet 4.1.8, and doMC 1.3.8.
 ```R
 install.packages(c("optparse", "data.table", "glmnet", "doMC"))
 ```
-3. Download PLINK 2.00 and place it in a directory on your PATH. We used PLINK v2.00a6LM AVX2 AMD (9 Jun 2024).
+3. Download PLINK 2.0 and place it in a directory on your PATH. We used PLINK v2.0.0-a.6.9LM AVX2 AMD (29 Jan 2025).
 ```bash
-wget https://s3.amazonaws.com/plink2-assets/plink2_linux_amd_avx2_20240609.zip
-unzip plink2_linux_amd_avx2_20240609.zip && rm plink2_linux_amd_avx2_20240609.zip
-sudo mv plink2 /usr/local/bin/
+wget https://s3.amazonaws.com/plink2-assets/alpha6/plink2_linux_amd_avx2_20250129.zip
+unzip plink2_linux_amd_avx2_20250129.zip && rm plink2_linux_amd_avx2_20250129.zip
+sudo mv plink2 /usr/local/bin/ && rm vcf_subset
 ```
 
 ## Usage guide
@@ -96,7 +96,7 @@ We also provide the batch script `run_cowas_train.sh`, located in the `utils` fo
 
 ### Variant screening tips
 
-The `cowas_train.R` script will use all variants in the provided genotype matrices as model inputs. Thus, you need to select an initial set of genetic variants for each gene or protein before running `cowas_train.R` or `run_cowas_train.sh`. In our paper, we compared three approaches for pre-screening variants:
+The `cowas_train.R` script will use all variants in the provided genotype matrices as model inputs. To reduce the computational time needed for model training, we suggest selecting an initial set of genetic variants for each gene or protein before running `cowas_train.R` or `run_cowas_train.sh`. In our paper, we compared three approaches for pre-screening variants:
 
 1. **Variants selected by *P* value.** One approach is to select genetic variants that have the most significant association with expression levels. That is, the top $d$ (e.g., top 100) most significant QTLs for the given gene/protein can be used as an initial set of predictors. Alternatively, one may consider including all variants that pass a nominal significance threshold.
 2. **Variants selected by effect size.** Instead of ranking variants by their QTL *P* values, they can be ranked by their marginal correlation with expression levels. First, componentwise regression is performed to compute the marginal correlation between each standardized feature (genetic variant) and the response (expression levels). Then the features are ranked by the absolute values of their correlations, and the top $d$ (e.g., top 100) are selected as predictors.
@@ -127,11 +127,13 @@ You will also need Data-Coding 143, which is a flat list containing gene names f
 
 ### GWAS summary statistics
 
-For LDL cholesterol levels, we used GWAS summary statistics data from the Global Lipids Genetics Consortium (Graham et al. 2021). Note that this study provides multi-ancestry as well as ancestry-specific results, but we only considered the European results in order to match the genetic ancestry of the UK Biobank. The summary-level associations can be downloaded from <https://csg.sph.umich.edu/willer/public/glgc-lipids2021/results/ancestry_specific/>. Place the unpacked file `LDL_INV_EUR_HRC_1KGP3_others_ALL.meta.singlevar.results` in `data_raw`.
+For LDL cholesterol levels, we used summary statistics data from the Global Lipids Genetics Consortium (GLGC) GWAS conducted by [Graham et al. (2021)](https://www.nature.com/articles/s41586-021-04064-3). Note that this study provides multi-ancestry as well as ancestry-specific results, but we only considered the European results in order to match the genetic ancestry of the UK Biobank. The summary-level associations can be downloaded from <https://csg.sph.umich.edu/willer/public/glgc-lipids2021/results/ancestry_specific/>. Place the unpacked file `LDL_INV_EUR_HRC_1KGP3_others_ALL.meta.singlevar.results` in `data_raw`.
 
-For Alzheimer's disease, we used GWAS summary statistics data from the European Alzheimer & Dementia Biobank consortium (Bellenguez et al. 2022). The summary-level associations can be downloaded from <https://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST90027001-GCST90028000/GCST90027158/>. Place the unpacked file `GCST90027158_buildGRCh38.tsv` in `data_raw`.
+For our primary analysis of Alzheimer's disease, we used summary statistics data from the European Alzheimer & Dementia Biobank (EADB) consortium GWAS conducted by [Bellenguez et al. (2022)](https://www.nature.com/articles/s41588-022-01024-z). This was the largest genetic association study of Alzheimer's disease available at the time of writing. Summary-level associations for the EADB GWAS can be downloaded from <https://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST90027001-GCST90028000/GCST90027158/>. Place the unpacked file `GCST90027158_buildGRCh38.tsv` in `data_raw`.
 
-For Parkinson's disease, we used GWAS summary statistics data from the International Parkinson's Disease Genomics Consortium (Nalls et al. 2019). The summary-level associations can be downloaded from <https://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST009001-GCST010000/GCST009325/harmonised/>. Place the unpacked file `GCST009325.h.tsv` in `data_raw`.
+Although the EADB GWAS of Alzheimer's disease is the largest available, some have questioned its quality because the EADB study relied in part on proxy cases, where participants' disease status was imputed from their family history of Alzheimer's disease instead of being clinically diagnosed. Thus, we also considered the largest GWAS of Alzheimer's disease that does not contain proxy cases: the International Genomics of Alzheimer's Project (IGAP) consortium GWAS, which was coducted by [Kunkle et al. (2019)](https://www.nature.com/articles/s41588-019-0358-2). Summary-level associations for the IGAP GWAS can be downloaded from <https://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST007001-GCST008000/GCST007511>. Place the file `Kunkle_etal_Stage1_results.txt` in `data_raw`.
+
+For Parkinson's disease, we used summary statistics data from the International Parkinson Disease Genomics Consortium (IPDGC) GWAS conducted by [Nalls et al. (2019)](https://www.thelancet.com/journals/laneur/article/PIIS1474-4422(19)30320-5). The summary-level associations can be downloaded from <https://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST009001-GCST010000/GCST009325/harmonised/>. Place the unpacked file `GCST009325.h.tsv` in `data_raw`.
 
 ### Data processing
 

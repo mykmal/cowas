@@ -4,12 +4,12 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=124gb
 #SBATCH --time=96:00:00
-#SBATCH --partition=agsmall,aglarge,ag2tb
+#SBATCH --partition=msismall,msilarge,msibigmem,msilong
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=malak039@umn.edu
 #SBATCH -o logs/%j.out
 
-module load R/4.4.0-openblas-rocky8
+module load R/4.4.2-openblas-rocky8
 
 mkdir pairs
 mkdir data_cleaned
@@ -177,6 +177,13 @@ plink2 --pfile data_cleaned/genotypes \
        --extract TEMP_mutual_AD_variants.txt \
        --make-pgen psam-cols=sex \
        --out data_cleaned/genotypes_subset_for_AD
+
+plink2 --pfile data_cleaned/genotypes \
+       --threads 30 \
+       --memory 120000 \
+       --extract TEMP_mutual_AD_IGAP_variants.txt \
+       --make-pgen psam-cols=sex \
+       --out data_cleaned/genotypes_subset_for_AD_IGAP
 
 plink2 --pfile data_cleaned/genotypes \
        --threads 30 \

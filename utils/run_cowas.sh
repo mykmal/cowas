@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=64gb
 #SBATCH --time=24:00:00
-#SBATCH --partition=agsmall,aglarge,ag2tb
+#SBATCH --partition=msismall,msilarge,msibigmem,msilong
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=malak039@umn.edu
 #SBATCH -o logs/%j.out
@@ -43,7 +43,7 @@ printf "PREDICTORS = ${PREDICTORS}\n"
 printf "OUT_FILE = ${OUT_FILE}\n"
 printf "CORES = ${CORES}\n\n"
 
-module load R/4.4.0-openblas-rocky8
+module load R/4.4.2-openblas-rocky8
 
 # This variable sets the number of cores for R to use
 export OMP_NUM_THREADS=${CORES}

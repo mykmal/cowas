@@ -45,7 +45,7 @@ fwrite(ldl_gwas, file = "data_cleaned/Graham_2021_LDL_GWAS.tsv", quote = FALSE, 
 
 rm(ldl_gwas, ldl_duplicated_variants, ldl_variants_keep)
 
-# Alzheimer's disease GWAS ------------------------------------------------------------------------
+# EADB GWAS of Alzheimer's disease ----------------------------------------------------------------
 
 # Load GWAS data
 ad_gwas <- fread(file = "data_raw/GCST90027158_buildGRCh38.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE,
@@ -87,6 +87,48 @@ write.table(ad_variants_keep, file = "TEMP_mutual_AD_variants.txt", quote = FALS
 fwrite(ad_gwas, file = "data_cleaned/Bellenguez_2022_AD_GWAS.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
 
 rm(ad_gwas, ad_duplicated_variants, ad_variants_keep)
+
+# IGAP GWAS of Alzheimer's disease ----------------------------------------------------------------
+
+# Load IGAP Alzheimer's disease GWAS data
+igap_gwas <- fread(file = "data_raw/Kunkle_etal_Stage1_results.txt", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE,
+                   select = c("MarkerName", "Effect_allele", "Non_Effect_allele", "Beta", "SE"))
+setnames(igap_gwas, c("variant_id", "effect_allele", "other_allele", "beta", "standard_error"))
+
+# Check for duplicated variants and remove any that are present in the GWAS
+igap_duplicated_variants <- igap_gwas[duplicated(variant_id), ]$variant_id
+message("\nNOTE: ", nrow(igap_gwas[variant_id %in% igap_duplicated_variants, ]), " rows with duplicated variants were removed from the IGAP GWAS.\n")
+igap_gwas <- igap_gwas[!variant_id %in% igap_duplicated_variants, ]
+
+# Subset to the variants included in both the IGAP GWAS and the UKB imputed genotype data
+igap_gwas <- merge(igap_gwas, ukb_variants, by.x = "variant_id", by.y = "ID", sort = FALSE)
+igap_gwas <- igap_gwas[(effect_allele == ALT & other_allele == REF) | (effect_allele == REF & other_allele == ALT), ]
+
+# Compute Z-scores because they were not provided
+igap_gwas[, z_score := as.numeric(beta) / as.numeric(standard_error)]
+igap_gwas[, c("beta", "standard_error") := NULL]
+
+# Flip the IGAP GWAS summary statistics when necessary
+igap_gwas[effect_allele != ALT, flip := TRUE]
+igap_gwas[flip == TRUE, `:=` (effect_allele_flipped = other_allele,
+                              other_allele_flipped = effect_allele,
+                              z_score = -1 * as.numeric(z_score))]
+igap_gwas[flip == TRUE, `:=` (effect_allele = effect_allele_flipped,
+                              other_allele = other_allele_flipped)]
+igap_gwas[, c("REF", "ALT", "flip", "effect_allele_flipped", "other_allele_flipped") := NULL]
+
+# Create a column for the total sample size
+igap_gwas[, n_samples := 63926]
+
+# This is the final list of variants that will be used for COWAS
+igap_gwas <- na.omit(igap_gwas)
+igap_variants_keep <- igap_gwas$variant_id
+
+# Save the processed IGAP GWAS summary data
+write.table(igap_variants_keep, file = "TEMP_mutual_AD_IGAP_variants.txt", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+fwrite(igap_gwas, file = "data_cleaned/Kunkle_2019_AD_GWAS.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
+
+rm(igap_gwas, igap_duplicated_variants, igap_variants_keep)
 
 # Parkinson's disease GWAS ------------------------------------------------------------------------
 
