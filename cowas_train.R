@@ -401,22 +401,21 @@ if (n_nonzero_a <= 0 || n_nonzero_b <= 0 || n_nonzero_co <= 0) {
   stop("At least one of the models in the pair ", opt$protein_a, "_", opt$protein_b, " has no nonzero weights. This pair will be skipped.")
 }
 
+# Get predicted values on the full data set
+if (opt$model == "stepwise") {
+  imputed_full_a <- predict(object = full_output$model_a, newdata = genotypes_a,
+                            type = "response")
+  imputed_full_b <- predict(object = full_output$model_b, newdata = genotypes_b,
+                            type = "response")
+} else {
+  imputed_full_a <- predict(object = full_output$model_a, newx = as.matrix(genotypes_a),
+                            s = "lambda.min", type = "response")
+  imputed_full_b <- predict(object = full_output$model_b, newx = as.matrix(genotypes_b),
+                            s = "lambda.min", type = "response")
+}
+
 # If co-expression is being modeled as conditional covariance, calculate the full-sample conditional covariance
 if (opt$conditional_covariance == TRUE) {
-  # Get predicted values on the full data set
-  if (opt$model == "stepwise") {
-    imputed_full_a <- predict(object = full_output$model_a, newdata = genotypes_a,
-                              type = "response")
-    imputed_full_b <- predict(object = full_output$model_b, newdata = genotypes_b,
-                              type = "response")
-  } else {
-    imputed_full_a <- predict(object = full_output$model_a, newx = as.matrix(genotypes_a),
-                              s = "lambda.min", type = "response")
-    imputed_full_b <- predict(object = full_output$model_b, newx = as.matrix(genotypes_b),
-                              s = "lambda.min", type = "response")
-  }
-  
-  # Compute the conditional co-expression between the two proteins using full-sample model weights
   set(x = expression, j = "coexpression", value = (expression[[opt$protein_a]] - imputed_full_a) * (expression[[opt$protein_b]] - imputed_full_b))
 } else {
   # Otherwise, calculate the full-sample interaction term A*B
