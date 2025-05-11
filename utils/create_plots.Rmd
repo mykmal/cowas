@@ -1,7 +1,7 @@
 ---
 title: "COWAS plots"
 author: "Mykhaylo M. Malakhov"
-date: "2024-11-17"
+date: "2025-05-11"
 output: html_document
 ---
 
@@ -12,6 +12,13 @@ library(tidyr)
 library(ggplot2)
 library(VennDiagram)
 library(igraph)
+
+cor_test <- function(r, n) {
+  n_test <- floor(n * 0.2)
+  t <- r * sqrt((n_test - 2) / (1 - r^2))
+  p <- 2 * stats::pt(t, df = n_test - 2, lower.tail = FALSE)
+  return(p)
+}
 ```
 
 This R Markdown file provides code for cleaning COWAS results and creating the plots included in our paper.
@@ -48,7 +55,7 @@ global_beta_ridge <- fread("general_weights/weights_global_beta_ridge/performanc
 Note that the *cis* models (i.e., those trained on local variants) were only trained for pairs of autosomal proteins. Here we subset performance metrics for the rest of the models to that same set of proteins.
 
 ```{r}
-autosomal_proteins <- fread("protein_annotations_derived/proteins_used_for_cis_training.txt", header = FALSE)
+autosomal_proteins <- fread("msi_backup/protein_annotations_derived/proteins_used_for_cis_training.txt", header = FALSE)
 
 global_pval_elnet <- global_pval_elnet[ID_A %in% autosomal_proteins$V1 & ID_B %in% autosomal_proteins$V1, ]
 global_pval_lasso <- global_pval_lasso[ID_A %in% autosomal_proteins$V1 & ID_B %in% autosomal_proteins$V1, ]
@@ -107,21 +114,33 @@ global_beta_ridge <- sort_metrics(global_beta_ridge)
 
 ```{r}
 cis_pval_elnet[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
+cis_pval_elnet[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
 cis_pval_lasso[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
+cis_pval_lasso[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
 cis_pval_ridge[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
+cis_pval_ridge[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
 
 cis_beta_elnet[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
+cis_beta_elnet[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
 cis_beta_lasso[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
+cis_beta_lasso[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
 cis_beta_ridge[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
+cis_beta_ridge[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
 
 
 global_pval_elnet[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
+global_pval_elnet[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
 global_pval_lasso[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
+global_pval_lasso[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
 global_pval_ridge[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
+global_pval_ridge[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
 
 global_beta_elnet[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
+global_beta_elnet[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
 global_beta_lasso[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
+global_beta_lasso[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
 global_beta_ridge[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
+global_beta_ridge[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
 
 
 get_metrics <- function(performance_metrics) {
@@ -130,6 +149,7 @@ get_metrics <- function(performance_metrics) {
   median_single_r2 <- median(c(performance_metrics$R2_A, performance_metrics$R2_B))
   mean_co_r2 <- mean(performance_metrics$R2_CO)
   median_co_r2 <- median(performance_metrics$R2_CO)
+  percent_sig_cor <- nrow(performance_metrics[PVAL_R_A < 0.05 & PVAL_R_B < 0.05 & PVAL_R_CO < 0.05, ]) / nrow(performance_metrics)
   
   good_pairs <- performance_metrics[CORRELATION_A > 0.03 & CORRELATION_B > 0.03 & CORRELATION_CO > 0.03, ]
   n_good <- nrow(good_pairs)
@@ -137,17 +157,20 @@ get_metrics <- function(performance_metrics) {
   good_median_single_r2 <- median(c(good_pairs$R2_A, good_pairs$R2_B))
   good_mean_co_r2 <- mean(good_pairs$R2_CO)
   good_median_co_r2 <- median(good_pairs$R2_CO)
+  good_percent_sig_cor <- nrow(good_pairs[PVAL_R_A < 0.05 & PVAL_R_B < 0.05 & PVAL_R_CO < 0.05, ]) / nrow(good_pairs)
   
   output <- list(n_pairs = n_pairs,
                  mean_single_r2 = mean_single_r2,
                  median_single_r2 = median_single_r2,
                  mean_co_r2 = mean_co_r2,
                  median_co_r2 = median_co_r2,
+                 percent_sig_cor = round(percent_sig_cor, digits = 4) * 100,
                  n_good = n_good,
                  good_mean_single_r2 = good_mean_single_r2,
                  good_median_single_r2 = good_median_single_r2,
                  good_mean_co_r2 = good_mean_co_r2,
-                 good_median_co_r2 = good_median_co_r2)
+                 good_median_co_r2 = good_median_co_r2,
+                 good_percent_sig_cor = round(good_percent_sig_cor, digits = 4) * 100)
   return(output)
 }
 ```
@@ -178,9 +201,9 @@ get_metrics(global_beta_ridge)
 
 ```{r}
 column_order <- c("ID_A", "ID_B", "N_TRAINING",
-                  "NFEATURES_A", "CORRELATION_A", "R2_A",
-                  "NFEATURES_B", "CORRELATION_B", "R2_B",
-                  "NFEATURES_CO", "CORRELATION_CO", "R2_CO")
+                  "NFEATURES_A", "CORRELATION_A", "PVAL_R_A", "R2_A",
+                  "NFEATURES_B", "CORRELATION_B", "PVAL_R_B", "R2_B",
+                  "NFEATURES_CO", "CORRELATION_CO", "PVAL_R_CO", "R2_CO")
 
 
 setnames(cis_pval_elnet, "SAMPLE_SIZE", "N_TRAINING")
@@ -300,18 +323,27 @@ These performance metrics will be used to select well-imputed pairs for each tra
 ```{r}
 weights_cis_beta_lasso_ldl <- fread("gwas_specific_weights/weights_cis_beta_lasso_ldl/performance_metrics.tsv")
 weights_cis_beta_lasso_ad <- fread("gwas_specific_weights/weights_cis_beta_lasso_ad/performance_metrics.tsv")
+weights_cis_beta_lasso_ad_igap <- fread("gwas_specific_weights/weights_cis_beta_lasso_ad_igap/performance_metrics.tsv")
 weights_cis_beta_lasso_pd <- fread("gwas_specific_weights/weights_cis_beta_lasso_pd/performance_metrics.tsv")
 
 weights_cis_beta_lasso_ldl[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
 weights_cis_beta_lasso_ad[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
+weights_cis_beta_lasso_ad_igap[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
 weights_cis_beta_lasso_pd[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
+
+weights_cis_beta_lasso_ldl[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
+weights_cis_beta_lasso_ad[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
+weights_cis_beta_lasso_ad_igap[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
+weights_cis_beta_lasso_pd[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
 
 setnames(weights_cis_beta_lasso_ldl, "SAMPLE_SIZE", "N_TRAINING")
 setnames(weights_cis_beta_lasso_ad, "SAMPLE_SIZE", "N_TRAINING")
+setnames(weights_cis_beta_lasso_ad_igap, "SAMPLE_SIZE", "N_TRAINING")
 setnames(weights_cis_beta_lasso_pd, "SAMPLE_SIZE", "N_TRAINING")
 
 weights_cis_beta_lasso_ldl[, ID := paste0(ID_A, "_", ID_B)]
 weights_cis_beta_lasso_ad[, ID := paste0(ID_A, "_", ID_B)]
+weights_cis_beta_lasso_ad_igap[, ID := paste0(ID_A, "_", ID_B)]
 weights_cis_beta_lasso_pd[, ID := paste0(ID_A, "_", ID_B)]
 ```
 
@@ -321,22 +353,27 @@ weights_cis_beta_lasso_pd[, ID := paste0(ID_A, "_", ID_B)]
 ```{r}
 results_cis_beta_lasso_ldl <- fread("association_results/results_cis_beta_lasso_ldl.tsv")
 results_cis_beta_lasso_ad <- fread("association_results/results_cis_beta_lasso_ad.tsv")
+results_cis_beta_lasso_ad_igap <- fread("association_results/results_cis_beta_lasso_ad_igap.tsv")
 results_cis_beta_lasso_pd <- fread("association_results/results_cis_beta_lasso_pd.tsv")
 
 results_cis_beta_lasso_ldl[, ID := paste0(ID_A, "_", ID_B)]
 results_cis_beta_lasso_ad[, ID := paste0(ID_A, "_", ID_B)]
+results_cis_beta_lasso_ad_igap[, ID := paste0(ID_A, "_", ID_B)]
 results_cis_beta_lasso_pd[, ID := paste0(ID_A, "_", ID_B)]
 
 results_ldl <- merge(results_cis_beta_lasso_ldl, weights_cis_beta_lasso_ldl, by = "ID")
 results_ad <- merge(results_cis_beta_lasso_ad, weights_cis_beta_lasso_ad, by = "ID")
+results_ad_igap <- merge(results_cis_beta_lasso_ad_igap, weights_cis_beta_lasso_ad_igap, by = "ID")
 results_pd <- merge(results_cis_beta_lasso_pd, weights_cis_beta_lasso_pd, by = "ID")
 
 rm(results_cis_beta_lasso_ldl, weights_cis_beta_lasso_ldl,
    results_cis_beta_lasso_ad, weights_cis_beta_lasso_ad,
+   results_cis_beta_lasso_ad_igap, weights_cis_beta_lasso_ad_igap,
    results_cis_beta_lasso_pd, weights_cis_beta_lasso_pd)
 
 results_ldl <- results_ldl[CORRELATION_A > 0.03 & CORRELATION_B > 0.03 & CORRELATION_CO > 0.03, ]
 results_ad <- results_ad[CORRELATION_A > 0.03 & CORRELATION_B > 0.03 & CORRELATION_CO > 0.03, ]
+results_ad_igap <- results_ad_igap[CORRELATION_A > 0.03 & CORRELATION_B > 0.03 & CORRELATION_CO > 0.03, ]
 results_pd <- results_pd[CORRELATION_A > 0.03 & CORRELATION_B > 0.03 & CORRELATION_CO > 0.03, ]
 ```
 
@@ -352,9 +389,9 @@ columns_keep <- c("ID_A", "ID_B", "N_TRAINING", "N_REFERENCE", "N_GWAS",
                   "THETA_JOINT_B", "VAR_THETA_JOINT_B", "PVAL_THETA_JOINT_B",
                   "THETA_JOINT_CO", "VAR_THETA_JOINT_CO", "PVAL_THETA_JOINT_CO",
                   "FSTAT_JOINT", "PVAL_FSTAT_JOINT",
-                  "NFEATURES_A", "CORRELATION_A", "R2_A",
-                  "NFEATURES_B", "CORRELATION_B", "R2_B",
-                  "NFEATURES_CO", "CORRELATION_CO", "R2_CO")
+                  "NFEATURES_A", "CORRELATION_A", "PVAL_R_A", "R2_A",
+                  "NFEATURES_B", "CORRELATION_B", "PVAL_R_B", "R2_B",
+                  "NFEATURES_CO", "CORRELATION_CO", "PVAL_R_CO", "R2_CO")
 
 sort_results <- function(table) {
   setnames(table, c("ID_A.x", "ID_B.x"), c("ID_A", "ID_B"))
@@ -368,6 +405,7 @@ sort_results <- function(table) {
                 PVAL_THETA_JOINT_A_copy = PVAL_THETA_JOINT_A,
                 NFEATURES_A_copy = NFEATURES_A,
                 CORRELATION_A_copy = CORRELATION_A,
+                PVAL_R_A_copy = PVAL_R_A,
                 R2_A_copy = R2_A)]
   
   table[ID_B < ID_A, swap := TRUE]
@@ -380,6 +418,7 @@ sort_results <- function(table) {
                             PVAL_THETA_JOINT_A = PVAL_THETA_JOINT_B,
                             NFEATURES_A = NFEATURES_B,
                             CORRELATION_A = CORRELATION_B,
+                            PVAL_R_A = PVAL_R_B,
                             R2_A = R2_B)]
   table[swap == TRUE, `:=` (ID_B = ID_A_copy,
                             THETA_MARGINAL_B = THETA_MARGINAL_A_copy,
@@ -390,6 +429,7 @@ sort_results <- function(table) {
                             PVAL_THETA_JOINT_B = PVAL_THETA_JOINT_A_copy,
                             NFEATURES_B = NFEATURES_A_copy,
                             CORRELATION_B = CORRELATION_A_copy,
+                            PVAL_R_B = PVAL_R_A_copy,
                             R2_B = R2_A_copy)]
   
   table <- table[, ..columns_keep]
@@ -398,6 +438,7 @@ sort_results <- function(table) {
 
 results_ldl <- sort_results(results_ldl)
 results_ad <- sort_results(results_ad)
+results_ad_igap <- sort_results(results_ad_igap)
 results_pd <- sort_results(results_pd)
 ```
 
@@ -408,6 +449,8 @@ results_pd <- sort_results(results_pd)
 fwrite(results_ldl, file = "figures_tables/csv/results_ldl.csv")
 
 fwrite(results_ad, file = "figures_tables/csv/results_ad.csv")
+
+fwrite(results_ad_igap, file = "figures_tables/csv/results_ad_igap.csv")
 
 fwrite(results_pd, file = "figures_tables/csv/results_pd.csv")
 ```
@@ -452,6 +495,24 @@ sig_ad_any <- results_ad[PVAL_FSTAT_JOINT < ad_bonferroni_pairs |
                            PVAL_THETA_JOINT_CO < ad_bonferroni_pairs | 
                            PVAL_THETA_MARGINAL_A < ad_bonferroni_individual | 
                            PVAL_THETA_MARGINAL_B < ad_bonferroni_individual, ]
+
+
+igap_bonferroni_pairs <- 0.05 / nrow(results_ad_igap)
+igap_bonferroni_individual <- 0.05 / length(unique(c(results_ad_igap$ID_A, results_ad_igap$ID_B)))
+
+sig_igap_global <- results_ad_igap[PVAL_FSTAT_JOINT < igap_bonferroni_pairs, ]
+sig_igap_interaction <- results_ad_igap[PVAL_THETA_JOINT_CO < igap_bonferroni_pairs, ]
+
+sig_igap_pwas_a <- results_ad_igap[PVAL_THETA_MARGINAL_A < igap_bonferroni_individual, ]
+sig_igap_pwas_b <- results_ad_igap[PVAL_THETA_MARGINAL_B < igap_bonferroni_individual, ]
+
+sig_igap_pwas <- results_ad_igap[PVAL_THETA_MARGINAL_A < igap_bonferroni_individual | 
+                                   PVAL_THETA_MARGINAL_B < igap_bonferroni_individual, ]
+
+sig_igap_any <- results_ad_igap[PVAL_FSTAT_JOINT < igap_bonferroni_pairs | 
+                                  PVAL_THETA_JOINT_CO < igap_bonferroni_pairs | 
+                                  PVAL_THETA_MARGINAL_A < igap_bonferroni_individual | 
+                                  PVAL_THETA_MARGINAL_B < igap_bonferroni_individual, ]
 
 
 pd_bonferroni_pairs <- 0.05 / nrow(results_pd)
@@ -508,6 +569,30 @@ venn.diagram(x = list(global = sig_ad_global$ID,
                       interaction = sig_ad_interaction$ID,
                       pwas = sig_ad_pwas$ID),
              filename = "figures_tables/plots/venn_ad.png",
+             disable.logging = TRUE,
+             force.unique = TRUE,
+             
+             height = 3200,
+             width = 3200,
+             resolution = 600,
+             imagetype = "png",
+             
+             fill = c("#228833", "#EE6677", "#CCBB44"),
+             alpha = 0.8,
+             cex = 2,
+             fontface = "plain",
+             fontfamily = "sans",
+             category.names = c("", "", "")
+             )
+
+sig_igap_global[, ID := paste0(ID_A, "_", ID_B)]
+sig_igap_interaction[, ID := paste0(ID_A, "_", ID_B)]
+sig_igap_pwas[, ID := paste0(ID_A, "_", ID_B)]
+
+venn.diagram(x = list(global = sig_igap_global$ID,
+                      interaction = sig_igap_interaction$ID,
+                      pwas = sig_igap_pwas$ID),
+             filename = "figures_tables/plots/venn_ad_igap.png",
              disable.logging = TRUE,
              force.unique = TRUE,
              
@@ -586,6 +671,7 @@ create_heatmap <- function(original_table, filename, dimx, dimy, cutoff, xsize) 
 
 create_heatmap(sig_ldl_any, "heatmap_ldl.png", 8500, 2000, 20, 7)
 create_heatmap(sig_ad_any, "heatmap_ad.png", 6000, 2000, 20, 10)
+create_heatmap(sig_igap_any, "heatmap_ad_igap.png", 6000, 2000, 20, 10)
 create_heatmap(sig_pd_any, "heatmap_pd.png", 4000, 2000, 5, 10)
 ```
 
@@ -624,6 +710,8 @@ create_network(sig_ldl_interaction, sig_ldl_global, sig_ldl_pwas_a, sig_ldl_pwas
                "network_ldl.png", nodesize = 5, fontsize = 2, width = 10)
 create_network(sig_ad_interaction, sig_ad_global, sig_ad_pwas_a, sig_ad_pwas_b,
                "network_ad.png", nodesize = 12, fontsize = 5, width = 20)
+create_network(sig_igap_interaction, sig_igap_global, sig_igap_pwas_a, sig_igap_pwas_b,
+               "network_ad_igap.png", nodesize = 12, fontsize = 5, width = 20)
 create_network(sig_pd_interaction, sig_pd_global, sig_pd_pwas_a, sig_pd_pwas_b,
                "network_pd.png", nodesize = 20, fontsize = 8, width = 25)
 ```
