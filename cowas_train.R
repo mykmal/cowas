@@ -8,92 +8,114 @@ suppressMessages(library(data.table))
 option_list <- list(
   make_option(
     c("--protein_a"),
+    action = "store",
+    type = "character",
     help = "Name (or identifier) of the first protein in the co-expression pair. [required]"
   ),
   make_option(
     c("--protein_b"),
+    action = "store",
+    type = "character",
     help = "Name (or identifier) of the second protein in the co-expression pair. [required]"
   ),
   make_option(
     c("--genotypes_a"),
+    action = "store",
+    type = "character",
     help = "Path to a genotype matrix of variants to use as predictors for the first protein.
-                This should be a tab-separated file with a header line followed by one line
-                per individual, containing individual IDs in the first column and variants
-                with effect allele dosages coded as 0..2 in the remaining columns. [required]"
+            This should be a tab-separated file with a header line followed by one line per
+            individual, containing individual IDs in the first column and variants with ALT
+            allele dosages coded as 0..2 in the remaining columns. [required]"
   ),
   make_option(
     c("--genotypes_b"),
+    action = "store",
+    type = "character",
     help = "Path to a genotype matrix of variants to use as predictors for the second protein,
-                formatted the same as --genotypes_a. [required]"
+            formatted the same as --genotypes_a. [required]"
   ),
   make_option(
     c("--expression"),
+    action = "store",
+    type = "character",
     help = "Path to a matrix of expression levels for both proteins in the co-expression pair.
-                This should be a tab-separated file with a header line followed by one line
-                per individual, containing individual IDs in the first column and protein
-                expression values in the remaining columns. [required]"
+            This should be a tab-separated file with a header line followed by one line per
+            individual, containing individual IDs in the first column and protein expression
+            values in the remaining columns. [required]"
   ),
   make_option(
     c("--covariates"),
+    action = "store",
+    type = "character",
     help = "Path to a matrix of expression covariates. If specified, this should be a
-                tab-separated file with a header line followed by one line per individual,
-                containing individual IDs in the first column and covariates in the remaining
-                columns. Note that categorical variables need to already be coded as dummy
-                variables. [optional]"
+            tab-separated file with a header line followed by one line per individual,
+            containing individual IDs in the first column and covariates in the remaining
+            columns. Note that categorical variables need to already be coded as dummy
+            variables. [optional]"
   ),
   make_option(
     c("--out_folder"),
+    action = "store",
+    type = "character",
     default = "cowas_weights",
     help = "Path to a folder where COWAS weights will be stored. A TSV file with performance
-                metrics for each model will also be saved here. [default: `%default`]"
+            metrics for each model will also be saved here. [default: '%default']"
   ),
   make_option(
     c("--model"),
+    action = "store",
+    type = "character",
     default = "elastic_net",
-    help = "The type of model to fit. Valid options are `stepwise` (linear regression with
-                both-direction stepwise variable selection by AIC), `ridge` (linear regression
-                with an L2 penalty), `lasso` (linear regression with an L1 penalty), and
-                `elastic_net` (linear regression with a linear combination of the L1 and L2
-                penalties). [default: `%default`]"
+    help = "The type of model to fit. Valid options are 'stepwise' (linear regression with
+            both-direction stepwise variable selection by AIC), 'ridge' (linear regression
+            with an L2 penalty), 'lasso' (linear regression with an L1 penalty), and
+            'elastic_net' (linear regression with a linear combination of the L1 and L2
+            penalties). [default: '%default']"
   ),
   make_option(
     c("--cores"),
-    default = "1",
+    action = "store",
     type = "integer",
+    default = 1,
     help = "Number of cores to use for parallelization. The default value disables parallel
-                computation. [default: `%default`]"
+            computation. [default: %default]"
   ),
   make_option(
     c("--cor_threshold"),
-    default = 0.03,
+    action = "store",
     type = "double",
-    help = "Correlation threshold for expression and co-expression prediction models. COWAS
-                model weights will only be saved if the Pearson correlation between measured
-                and predicted expression (calculated on a held-out test set) is above this
-                threshold for all three models. [default: `%default`]"
+    default = 0.03,
+    help = "Correlation threshold for expression and co-expression imputation models. COWAS
+            model weights will only be saved if the Pearson correlation between measured
+            and predicted expression (calculated on a held-out test set) is above this
+            threshold for all three models. [default: %default]"
   ),
   make_option(
     c("--rank_normalize"),
-    action = "store_true",
+    action = "store",
+    type = "logical",
     default = TRUE,
-    help = "Perform a rank-based inverse-normal transformation (aka quantile normalization)
-                on the expression phenotypes before fitting models. If FALSE, expression values
-                will simply be centered and scaled. [default: `%default`]"
+    help = "Perform a rank-based inverse-normal transformation on the expression phenotypes
+            before fitting models. If FALSE, expression values will simply be centered
+            and scaled. [default: %default]"
   ),
   make_option(
-    c("--conditional_covariance"),
-    action = "store_true",
-    default = TRUE,
-    help = "Should co-expression be estimated as conditional covariance? The default value of TRUE
-                fits the COWAS model described in our paper. Setting this parameter to FALSE will
-                instead model co-expression as an interaction term. [default: `%default`]"
+    c("--product_based"),
+    action = "store",
+    type = "logical",
+    default = FALSE,
+    help = "Setting this parameter to TRUE will train models for product-based COWAS. In the
+            default version of COWAS, the outcome of the co-expression model is the product
+            of single-protein model residuals. In the product-based version of COWAS, the
+            outcome of the co-expression model is instead the product of observed expression
+            levels. See our paper for details. [default: %default]"
   )
 )
 
 opt <- parse_args(OptionParser(option_list = option_list))
 
 if (anyNA(opt[-6])) {
-  stop("Some required parameters are missing. Run `cowas_train.R --help` for usage info.")
+  stop("Some required parameters are missing. Run 'cowas_train.R --help' for usage info.")
 }
 
 # Load the glmnet package if penalized regression is requested
@@ -119,18 +141,14 @@ genotypes_b <- fread(file = opt$genotypes_b, header = TRUE, sep = "\t", na.strin
 expression <- fread(file = opt$expression, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE,
                     select = c("IID", opt$protein_a, opt$protein_b))
 
-# Remove allele codes after each rsid, in case files were created with `plink2 --recode A`
+# Remove allele codes after each rsid, in case files were created with 'plink2 --recode A'
 setnames(genotypes_a, gsub(pattern = "_.*", replacement = "", x = names(genotypes_a)))
 setnames(genotypes_b, gsub(pattern = "_.*", replacement = "", x = names(genotypes_b)))
 
 # Create a data table with all predictor variants for both proteins
-genotypes <- cbind(genotypes_a, genotypes_b[, !"IID"])
-duplicated_variants <- which(duplicated(names(genotypes)))
-suppressWarnings(genotypes[, (duplicated_variants) := NULL])
-
-# Free up memory
 variants_a <- names(genotypes_a)[-1]
 variants_b <- names(genotypes_b)[-1]
+genotypes <- genotypes_a[genotypes_b[, -which(names(genotypes_b) %in% variants_a), with = FALSE], on = "IID"]
 rm(genotypes_a, genotypes_b)
 
 # Subset to the common set of individuals with no missing values
@@ -139,6 +157,11 @@ if (is.na(opt$covariates)) {
   individuals <- intersect(genotypes$IID, expression$IID)
   genotypes <- genotypes[IID %in% individuals, ]
   expression <- expression[IID %in% individuals, ]
+  
+  # Sort each dataset by IID so that they match
+  setorder(genotypes, IID)
+  setorder(expression, IID)
+  
 } else {
   covariates <- fread(file = opt$covariates, header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE)
   covariates <- na.omit(covariates)
@@ -150,6 +173,11 @@ if (is.na(opt$covariates)) {
   genotypes <- genotypes[IID %in% individuals, ]
   expression <- expression[IID %in% individuals, ]
   covariates <- covariates[IID %in% individuals, ]
+  
+  # Sort each dataset by IID so that they match
+  setorder(genotypes, IID)
+  setorder(expression, IID)
+  setorder(covariates, IID)
   
   # Center and scale each covariate
   for (column in names(covariates)[-1]) {
@@ -170,7 +198,7 @@ n_expression <- nrow(expression)
 # Process each of the two proteins
 for (protein in c(opt$protein_a, opt$protein_b)) {
   
-  # Perform quantile normalization if requested
+  # Perform rank-based inverse-normal transformation if requested
   if (opt$rank_normalize == TRUE) {
     # This offset corresponds to the commonly-used Blom transform
     offset <- 0.375
@@ -196,6 +224,9 @@ for (protein in c(opt$protein_a, opt$protein_b)) {
     stop("Expression of ", protein, " is either constant or NA after normalization and/or covariate adjustment. Skipping the pair ", opt$protein_a, "_", opt$protein_b, ".")
   }
 }
+
+# Free up memory
+rm(covariates)
 
 # Fill in missing genotype calls with the mode for each variant
 # This is a reasonable imputation method when the missingness rate is very low
@@ -241,8 +272,9 @@ TrainStepwise <- function(z_a, z_b, z_both, x) {
   step_a <- stats::step(lm_null_a, scope = formula_full_a, direction = "both", trace = 0)
   step_b <- stats::step(lm_null_b, scope = formula_full_b, direction = "both", trace = 0)
   
-  # Compute the conditional co-expression if requested, otherwise create an interaction term
-  if (opt$conditional_covariance == TRUE) {
+  # Estimate the expected conditional correlation if running the standard version of COWAS,
+  # otherwise compute the product of observed expression levels
+  if (opt$product_based == FALSE) {
     pred_a <- predict(object = step_a, newdata = data_a, type = "response")
     pred_b <- predict(object = step_b, newdata = data_b, type = "response")
     x_co <- (data_a$x_a - pred_a) * (data_b$x_b - pred_b)
@@ -255,7 +287,7 @@ TrainStepwise <- function(z_a, z_b, z_both, x) {
   data_co <- cbind(x_co, z_both)
   rm(x_co, z_both)
   
-  # Train a model to predict conditional co-expression
+  # Train a model to predict the two proteins' co-expression
   formula_full_co <- as.formula(paste0("x_co ~ ", paste0(names(data_co)[-1], collapse = " + ")))
   lm_null_co <- stats::lm(x_co ~ 1, data = data_co)
   step_co <- stats::step(lm_null_co, scope = formula_full_co, direction = "both", trace = 0)
@@ -292,8 +324,9 @@ TrainGlmnet <- function(z_a, z_b, z_both, x, alpha) {
                        standardize = FALSE, intercept = TRUE,
                        parallel = use_cores)
   
-  # Compute the conditional co-expression if requested, otherwise create an interaction term
-  if (opt$conditional_covariance == TRUE) {
+  # Estimate the expected conditional correlation if running the standard version of COWAS,
+  # otherwise compute the product of observed expression levels
+  if (opt$product_based == FALSE) {
     pred_a <- predict(object = model_a, newx = z_a, s = "lambda.min", type = "response")
     pred_b <- predict(object = model_b, newx = z_b, s = "lambda.min", type = "response")
     coex <- (x[, 1] - pred_a) * (x[, 2] - pred_b)
@@ -302,7 +335,7 @@ TrainGlmnet <- function(z_a, z_b, z_both, x, alpha) {
     coex <- x[, 1] * x[, 2]
   }
   
-  # Fit an elastic net model for the conditional co-expression of protein_a and protein_b
+  # Fit an elastic net model to predict the two proteins' co-expression
   model_co <- cv.glmnet(x = z_both, y = coex,
                         family = "gaussian", type.measure = "mse",
                         alpha = alpha, nfolds = 10,
@@ -321,7 +354,7 @@ TrainGlmnet <- function(z_a, z_b, z_both, x, alpha) {
 
 # Train and evaluate the prediction models --------------------------------------------------------
 
-# Match up the genotype and expression data by sample ID, since we need to remove the IID column before model training
+# Make sure the genotype and expression data are matched by sample ID, since we need to remove the IID column
 expression <- expression[match(genotypes$IID, IID), ]
 expression[, IID := NULL]
 genotypes[, IID := NULL]
@@ -414,11 +447,11 @@ if (opt$model == "stepwise") {
                             s = "lambda.min", type = "response")
 }
 
-# If co-expression is being modeled as conditional covariance, calculate the full-sample conditional covariance
-if (opt$conditional_covariance == TRUE) {
+# If running the standard version of COWAS, estimate the conditional covariance for all samples
+if (opt$product_based == FALSE) {
   set(x = expression, j = "coexpression", value = (expression[[opt$protein_a]] - imputed_full_a) * (expression[[opt$protein_b]] - imputed_full_b))
 } else {
-  # Otherwise, calculate the full-sample interaction term A*B
+  # If instead running the product-based version of COWAS, calculate the product of the two proteins' observed expression levels
   set(x = expression, j = "coexpression", value = expression[[opt$protein_a]] * expression[[opt$protein_b]])
 }
 

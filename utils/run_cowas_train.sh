@@ -14,7 +14,7 @@
 PAIRS=pairs/hippie_pairs_autosomal.tsv
 
 # Folder with files listing the variants to use as predictors for each protein.
-# Files should be named <PROTEIN_NAME>.variants.txt and contain one column of variant IDs.
+# Files should be named <PROTEIN_NAME>.variants.txt and contain a single column of variant IDs.
 PREDICTORS=predictors_top_cis_beta_pd
 
 # Base name of the genotype data (in PLINK 2.0 format)
@@ -39,9 +39,10 @@ CORES=32
 # Correlation threshold for expression and co-expression imputation models
 COR_THRESHOLD=0.03
 
-# Should co-expression be estimated as conditional covariance? If set to FALSE,
-# a simple interaction term will be used instead.
-COVARIANCE=TRUE
+# Should product-based COWAS models be trained? If set to TRUE, then models will
+# be trained to predict the product of observed expression levels instead of
+# the conditional covariance of expression.
+PRODUCT_BASED=FALSE
 
 # -------------------------------------------------------------------------------------------------
 
@@ -55,7 +56,7 @@ printf "OUT_DIR = ${OUT_DIR}\n"
 printf "MODEL = ${MODEL}\n"
 printf "CORES = ${CORES}\n"
 printf "COR_THRESHOLD = ${COR_THRESHOLD}\n"
-printf "COVARIANCE = ${COVARIANCE}\n\n"
+printf "PRODUCT_BASED = ${PRODUCT_BASED}\n\n"
 
 module load R/4.4.2-openblas-rocky8
 
@@ -132,7 +133,7 @@ cut -f 2,7- ${COWAS_TEMP}/${PROTEIN_B}.raw > ${COWAS_TEMP}/${PROTEIN_B}.gmatrix
                 --cores ${CORES} \
                 --cor_threshold ${COR_THRESHOLD} \
                 --rank_normalize TRUE \
-                --conditional_covariance ${COVARIANCE}
+                --product_based ${PRODUCT_BASED}
 
 rm -rf ${COWAS_TEMP}
 

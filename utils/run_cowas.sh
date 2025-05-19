@@ -19,6 +19,9 @@ GWAS=data_cleaned/Nalls_2019_PD_GWAS.tsv
 # Path to a folder containing trained COWAS model weights, as saved by train_cowas.R
 WEIGHTS=gwas_specific_weights/weights_cis_beta_lasso_pd
 
+# Path to the file listing REF (reference) and ALT (effect) alleles for the COWAS models
+ALLELES=cowas_model_alleles.tsv
+
 # Base name of the genotype data to use for computing an LD reference panel (in PLINK 2.0 format)
 GENOTYPES=data_cleaned/genotypes_subset_for_PD
 
@@ -38,6 +41,7 @@ printf "Runtime parameters:\n"
 printf "PAIRS = ${PAIRS}\n"
 printf "GWAS = ${GWAS}\n"
 printf "WEIGHTS = ${WEIGHTS}\n"
+printf "ALLELES = ${ALLELES}\n"
 printf "GENOTYPES = ${GENOTYPES}\n"
 printf "PREDICTORS = ${PREDICTORS}\n"
 printf "OUT_FILE = ${OUT_FILE}\n"
@@ -58,6 +62,9 @@ THETA_JOINT_B\tVAR_THETA_JOINT_B\tPVAL_THETA_JOINT_B\t\
 THETA_JOINT_CO\tVAR_THETA_JOINT_CO\tPVAL_THETA_JOINT_CO\t\
 FSTAT_JOINT\tPVAL_FSTAT_JOINT\n" > ${OUT_FILE}
 fi
+
+# Extract COWAS model effect alleles
+tail -n +2 ${ALLELES} | cut -f 3,5 > TEMP_cowas_alt_alleles.tsv
 
 # Loop through all protein pairs in the $PAIRS file
 while read -r PROTEIN_A PROTEIN_B ETC; do
@@ -82,8 +89,7 @@ plink2 --pfile ${GENOTYPES} \
        --threads ${CORES} \
        --extract ${PREDICTORS}/${PROTEIN_A}.variants.txt ${PREDICTORS}/${PROTEIN_B}.variants.txt \
        --export A \
-       --export-allele data_cleaned/ukb_alt_alleles.tsv \
-       --make-just-pvar cols=maybecm \
+       --export-allele TEMP_cowas_alt_alleles.tsv \
        --out ${COWAS_TEMP}/genotypes
 
 if ( [ ! -f ${COWAS_TEMP}/genotypes.raw ] ); then
@@ -100,7 +106,7 @@ cut -f 7- ${COWAS_TEMP}/genotypes.raw > ${COWAS_TEMP}/ld_reference.gmatrix
           --protein_b ${PROTEIN_B} \
           --gwas ${GWAS} \
           --weights ${WEIGHTS} \
-          --alleles ${COWAS_TEMP}/genotypes.pvar \
+          --alleles ${ALLELES} \
           --ld_reference ${COWAS_TEMP}/ld_reference.gmatrix \
           --out ${OUT_FILE} \
           --cores ${CORES}
@@ -108,6 +114,8 @@ cut -f 7- ${COWAS_TEMP}/genotypes.raw > ${COWAS_TEMP}/ld_reference.gmatrix
 rm -rf ${COWAS_TEMP}
 
 done < ${PAIRS}
+
+rm TEMP_cowas_alt_alleles.tsv
 
 printf "Done!\n"
 
