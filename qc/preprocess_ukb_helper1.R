@@ -1,16 +1,17 @@
 library(data.table)
 
 # Load data
-ukb_main_dataset <- fread(file = "data_raw/ukb_main_dataset.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE)
-olink_data <- fread(file = "data_raw/olink_data.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE)
+ukb_main_dataset <- fread(file = "data_raw/ukb_main_dataset.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE,
+                          select = c("f.eid", "f.31.0.0", "f.54.0.0", "f.21003.0.0", "f.22000.0.0", "f.22006.0.0", "f.22020.0.0"))
+olink_data <- fread(file = "data_raw/protein_npx_levels.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE)
 olink_coding <- fread(file = "data_raw/coding143.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE)
-genotyped_samples <- fread(file = "TEMP_1.psam", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE, select = 2)
+genotyped_samples <- fread(file = "TEMP_merged.psam", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE, select = 2)
 
-# Subset to high-quality, unrelated, White British samples
+# Subset to high-quality, unrelated samples of White British ancestry
 ukb_main_dataset <- ukb_main_dataset[f.22020.0.0 == 1 & f.22006.0.0 == 1, ]
 
 # Reformat the main dataset
-ukb_main_dataset[, c("f.54.1.0", "f.54.2.0", "f.54.3.0", "f.21003.1.0", "f.21003.2.0", "f.21003.3.0", "f.22006.0.0", "f.22020.0.0") := NULL]
+ukb_main_dataset[, c("f.22006.0.0", "f.22020.0.0") := NULL]
 ukb_main_dataset <- na.omit(ukb_main_dataset)
 setnames(ukb_main_dataset, c("IID", "SEX", "ASSESSMENT_CENTER", "AGE", "MEASUREMENT_BATCH"))
 
@@ -26,6 +27,10 @@ olink_data[, protein_id_replaced := olink_coding[match(olink_data$protein_id, ol
 # Convert the proteomic data from long to wide format
 olink_data <- dcast(olink_data, eid ~ protein_id_replaced, value.var = "result")
 setnames(olink_data, "eid", "IID")
+
+# Remove GLIPR1 because 99.4% of samples failed quality control for this protein
+# See https://www.nature.com/articles/s41586-023-06592-6#Sec20
+olink_data[, GLIPR1 := NULL]
 
 # Subset all datasets to a common set of samples
 common_samples <- Reduce(intersect,
@@ -68,8 +73,12 @@ for (column in names(olink_data)[-1]) {
 # Create a table listing the pairs of proteins to analyze
 protein_pairs <- t(combn(names(olink_data)[-1], 2))
 
+# Sort the rows by sample identifiers
+setorder(ukb_main_dataset, IID)
+setorder(olink_data, IID)
+
 # Put the samples in a format compatible with PLINK's --keep command
-plink_keep_samples <- as.data.frame(cbind(common_samples, common_samples))
+plink_keep_samples <- as.data.frame(cbind(names(ukb_main_dataset), names(ukb_main_dataset)))
 names(plink_keep_samples) <- c("#FID", "IID")
 
 # Save the formatted datasets

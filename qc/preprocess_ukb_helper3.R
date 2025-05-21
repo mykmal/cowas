@@ -13,10 +13,10 @@ ldl_gwas <- fread(file = "data_raw/LDL_INV_EUR_HRC_1KGP3_others_ALL.meta.singlev
 
 setnames(ldl_gwas, c("variant_id", "effect_allele", "other_allele", "beta", "standard_error", "n_samples"))
 
-# Remove duplicated variants, if there are any
+# Check for duplicated variants and remove any that are present in the GWAS
 ldl_duplicated_variants <- ldl_gwas[duplicated(variant_id), ]$variant_id
-message("\nNOTE: ", nrow(ldl_gwas[variant_id %in% ldl_duplicated_variants, ]), " duplicated rows removed from the Graham et al. GWAS\n")
-ldl_gwas <- ldl_gwas[!variant_id %in% ldl_duplicated_variants, ]
+message("\nNOTE: ", nrow(ldl_gwas[variant_id %in% ldl_duplicated_variants, ]), " duplicated rows removed from the Graham et al. GWAS.")
+ldl_gwas <- ldl_gwas[!(variant_id %in% ldl_duplicated_variants), ]
 
 # Subset to the variants included in both the LDL GWAS and the UKB imputed genotype data
 ldl_gwas <- merge(ldl_gwas, ukb_variants, by.x = "variant_id", by.y = "ID", sort = FALSE)
@@ -48,45 +48,44 @@ rm(ldl_gwas, ldl_duplicated_variants, ldl_variants_keep)
 # EADB GWAS of Alzheimer's disease ----------------------------------------------------------------
 
 # Load GWAS data
-ad_gwas <- fread(file = "data_raw/GCST90027158_buildGRCh38.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE,
+eadb_gwas <- fread(file = "data_raw/GCST90027158_buildGRCh38.tsv", header = TRUE, na.strings = "NA", stringsAsFactors = FALSE,
                  select = c("variant_id", "effect_allele", "other_allele", "beta", "standard_error", "n_cases", "n_controls"))
 
-# The Bellenguez et al. GWAS has some rows with identical rsIDs, positions, effect alleles, and alternate alleles but different p-values and allele frequencies.
-# This seems to be a mistake in the data, so we remove all such rows.
-ad_duplicated_variants <- ad_gwas[duplicated(variant_id), ]$variant_id
-message("\nNOTE: ", nrow(ad_gwas[variant_id %in% ad_duplicated_variants, ]), " duplicated rows removed from the Bellenguez et al. GWAS\n")
-ad_gwas <- ad_gwas[!variant_id %in% ad_duplicated_variants, ]
+# Check for duplicated variants and remove any that are present in the GWAS
+eadb_duplicated_variants <- eadb_gwas[duplicated(variant_id), ]$variant_id
+message("NOTE: ", nrow(eadb_gwas[variant_id %in% eadb_duplicated_variants, ]), " duplicated rows removed from the Bellenguez et al. GWAS.")
+eadb_gwas <- eadb_gwas[!(variant_id %in% eadb_duplicated_variants), ]
 
-# Subset to the variants included in both the AD GWAS and the UKB imputed genotype data
-ad_gwas <- merge(ad_gwas, ukb_variants, by.x = "variant_id", by.y = "ID", sort = FALSE)
-ad_gwas <- ad_gwas[(effect_allele == ALT & other_allele == REF) | (effect_allele == REF & other_allele == ALT), ]
+# Subset to the variants included in both the EADB GWAS and the UKB imputed genotype data
+eadb_gwas <- merge(eadb_gwas, ukb_variants, by.x = "variant_id", by.y = "ID", sort = FALSE)
+eadb_gwas <- eadb_gwas[(effect_allele == ALT & other_allele == REF) | (effect_allele == REF & other_allele == ALT), ]
 
 # Compute Z-scores because they were not provided
-ad_gwas[, z_score := as.numeric(beta) / as.numeric(standard_error)]
-ad_gwas[, c("beta", "standard_error") := NULL]
+eadb_gwas[, z_score := as.numeric(beta) / as.numeric(standard_error)]
+eadb_gwas[, c("beta", "standard_error") := NULL]
 
-# Flip the AD GWAS summary statistics when necessary
-ad_gwas[effect_allele != ALT, flip := TRUE]
-ad_gwas[flip == TRUE, `:=` (effect_allele_flipped = other_allele,
-                            other_allele_flipped = effect_allele,
-                            z_score = -1 * as.numeric(z_score))]
-ad_gwas[flip == TRUE, `:=` (effect_allele = effect_allele_flipped,
-                            other_allele = other_allele_flipped)]
-ad_gwas[, c("REF", "ALT", "flip", "effect_allele_flipped", "other_allele_flipped") := NULL]
+# Flip the EADB GWAS summary statistics when necessary
+eadb_gwas[effect_allele != ALT, flip := TRUE]
+eadb_gwas[flip == TRUE, `:=` (effect_allele_flipped = other_allele,
+                              other_allele_flipped = effect_allele,
+                              z_score = -1 * as.numeric(z_score))]
+eadb_gwas[flip == TRUE, `:=` (effect_allele = effect_allele_flipped,
+                              other_allele = other_allele_flipped)]
+eadb_gwas[, c("REF", "ALT", "flip", "effect_allele_flipped", "other_allele_flipped") := NULL]
 
 # Create a column for the total sample size
-ad_gwas[, n_samples := as.numeric(n_cases) + as.numeric(n_controls)]
-ad_gwas[, c("n_cases", "n_controls") := NULL]
+eadb_gwas[, n_samples := as.numeric(n_cases) + as.numeric(n_controls)]
+eadb_gwas[, c("n_cases", "n_controls") := NULL]
 
-# The final list of variants that will be used for AD analysis
-ad_gwas <- na.omit(ad_gwas)
-ad_variants_keep <- ad_gwas$variant_id
+# This is the final list of variants that will be used for COWAS
+eadb_gwas <- na.omit(eadb_gwas)
+eadb_variants_keep <- eadb_gwas$variant_id
 
-# Save the processed GWAS summary data
-write.table(ad_variants_keep, file = "TEMP_mutual_AD_variants.txt", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
-fwrite(ad_gwas, file = "data_cleaned/Bellenguez_2022_AD_GWAS.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
+# Save the processed EADB GWAS summary data
+write.table(eadb_variants_keep, file = "TEMP_mutual_AD_EADB_variants.txt", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+fwrite(eadb_gwas, file = "data_cleaned/Bellenguez_2022_AD_GWAS.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
 
-rm(ad_gwas, ad_duplicated_variants, ad_variants_keep)
+rm(eadb_gwas, eadb_duplicated_variants, eadb_variants_keep)
 
 # IGAP GWAS of Alzheimer's disease ----------------------------------------------------------------
 
@@ -97,8 +96,8 @@ setnames(igap_gwas, c("variant_id", "effect_allele", "other_allele", "beta", "st
 
 # Check for duplicated variants and remove any that are present in the GWAS
 igap_duplicated_variants <- igap_gwas[duplicated(variant_id), ]$variant_id
-message("\nNOTE: ", nrow(igap_gwas[variant_id %in% igap_duplicated_variants, ]), " rows with duplicated variants were removed from the IGAP GWAS.\n")
-igap_gwas <- igap_gwas[!variant_id %in% igap_duplicated_variants, ]
+message("NOTE: ", nrow(igap_gwas[variant_id %in% igap_duplicated_variants, ]), " rows with duplicated variants were removed from the Kunkle et al. GWAS.")
+igap_gwas <- igap_gwas[!(variant_id %in% igap_duplicated_variants), ]
 
 # Subset to the variants included in both the IGAP GWAS and the UKB imputed genotype data
 igap_gwas <- merge(igap_gwas, ukb_variants, by.x = "variant_id", by.y = "ID", sort = FALSE)
@@ -138,10 +137,10 @@ pd_gwas <- fread(file = "data_raw/GCST009325.h.tsv", header = TRUE, na.strings =
 
 setnames(pd_gwas, c("variant_id", "effect_allele", "other_allele", "beta", "standard_error", "n_cases", "n_controls"))
 
-# Remove duplicated variants, if there are any
+# Check for duplicated variants and remove any that are present in the GWAS
 pd_duplicated_variants <- pd_gwas[duplicated(variant_id), ]$variant_id
-message("\nNOTE: ", nrow(pd_gwas[variant_id %in% pd_duplicated_variants, ]), " duplicated rows removed from the Nalls et al. GWAS\n")
-pd_gwas <- pd_gwas[!variant_id %in% pd_duplicated_variants, ]
+message("NOTE: ", nrow(pd_gwas[variant_id %in% pd_duplicated_variants, ]), " duplicated rows removed from the Nalls et al. GWAS.\n")
+pd_gwas <- pd_gwas[!(variant_id %in% pd_duplicated_variants), ]
 
 # Subset to the variants included in both the PD GWAS and the UKB imputed genotype data
 pd_gwas <- merge(pd_gwas, ukb_variants, by.x = "variant_id", by.y = "ID", sort = FALSE)

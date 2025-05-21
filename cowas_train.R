@@ -460,13 +460,16 @@ if (sd(imputed_full_a) <= 0 || sd(imputed_full_b) <= 0 || sd(expression$coexpres
   stop("Imputed expression or co-expression is constant for at least one of the models in the pair ", opt$protein_a, "_", opt$protein_b, ". This pair will be skipped.")
 }
 
-# Compute correlation on the test set
-r_a <- stats::cor(expression[test_indices, ][[opt$protein_a]], imputed_test_a)
-r_b <- stats::cor(expression[test_indices, ][[opt$protein_b]], imputed_test_b)
-r_co <- stats::cor(expression[test_indices, ][["coexpression"]], imputed_test_co)
+# Compute correlation, the coefficient of determination, and an association P value on the test set
+cor_test_a <- stats::cor.test(expression[test_indices, ][[opt$protein_a]], imputed_test_a,
+                              alternative = "two.sided", method = "pearson")
+cor_test_b <- stats::cor.test(expression[test_indices, ][[opt$protein_b]], imputed_test_b,
+                              alternative = "two.sided", method = "pearson")
+cor_test_co <- stats::cor.test(expression[test_indices, ][["co-expression"]], imputed_test_co,
+                               alternative = "two.sided", method = "pearson")
 
 # Check that all three models pass the correlation threshold
-if (r_a < opt$cor_threshold || r_b < opt$cor_threshold || r_co < opt$cor_threshold) {
+if (cor_test_a$estimate < opt$cor_threshold || cor_test_b$estimate < opt$cor_threshold || cor_test_co$estimate < opt$cor_threshold) {
   stop("At least one of the models in the pair ", opt$protein_a, "_", opt$protein_b, " fails the correlation threshold. This pair will be skipped.")
 }
 
@@ -474,13 +477,13 @@ if (r_a < opt$cor_threshold || r_b < opt$cor_threshold || r_co < opt$cor_thresho
 
 # Weights for all three models are saved within a single list in an RDS file
 weights_final <- full_output[c("weights_a", "weights_b", "weights_co")]
-saveRDS(weights_final, file = paste0(opt$out_folder, "/", opt$protein_a, "-", opt$protein_b, ".weights.rds"))
+saveRDS(weights_final, file = paste0(opt$out_folder, "/", opt$protein_a, "_", opt$protein_b, ".weights.rds"))
 
 # Gather performance metrics
 metrics <- c(opt$protein_a, opt$protein_b, n_expression,
-             n_nonzero_a, r_a,
-             n_nonzero_b, r_b,
-             n_nonzero_co, r_co)
+             n_nonzero_a, cor_test_a$estimate, cor_test_a$p.value, (cor_test_a$estimate)^2,
+             n_nonzero_b, cor_test_b$estimate, cor_test_b$p.value, (cor_test_b$estimate)^2,
+             n_nonzero_co, cor_test_co$estimate, cor_test_co$p.value, (cor_test_co$estimate)^2)
 
 # Append the performance metrics to the output file
 write.table(t(metrics), file = paste0(opt$out_folder, "/performance_metrics.tsv"),

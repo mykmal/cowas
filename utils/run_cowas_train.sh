@@ -66,9 +66,9 @@ fi
 
 if ( [ ! -f ${OUT_DIR}/performance_metrics.tsv ] ); then
 printf "ID_A\tID_B\tSAMPLE_SIZE\t\
-NFEATURES_A\tCORRELATION_A\t\
-NFEATURES_B\tCORRELATION_B\t\
-NFEATURES_CO\tCORRELATION_CO\n" > ${OUT_DIR}/performance_metrics.tsv
+NFEATURES_A\tCORRELATION_A\tPVAL_A\tR2_A\t\
+NFEATURES_B\tCORRELATION_B\tPVAL_B\tR2_B\t\
+NFEATURES_CO\tCORRELATION_CO\tPVAL_CO\tR2_CO\n" > ${OUT_DIR}/performance_metrics.tsv
 fi
 
 # Read names of proteins with available expression measurements

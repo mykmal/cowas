@@ -97,7 +97,7 @@ gwas <- fread(file = opt$gwas, header = TRUE, sep = "\t", na.strings = "NA", str
 gwas <- na.omit(gwas)
 
 # Read the trained model weights
-weights <- readRDS(paste0(opt$weights, "/", opt$protein_a, "-", opt$protein_b, ".weights.rds"))
+weights <- readRDS(paste0(opt$weights, "/", opt$protein_a, "_", opt$protein_b, ".weights.rds"))
 weights_a <- weights$weights_a
 weights_b <- weights$weights_b
 weights_co <- weights$weights_co
@@ -317,12 +317,11 @@ if (!is.na(stage2_abc$rss)) {
 
 # Append results to the output file
 output <- c(opt$protein_a, opt$protein_b, n_reference, n_gwas,
-            stage2_a$theta, stage2_a$variance_theta, pvalue_direct_a,
-            stage2_b$theta, stage2_b$variance_theta, pvalue_direct_b,
-            stage2_co$theta, stage2_co$variance_theta, pvalue_direct_co,
-            stage2_abc$theta[1,1], stage2_abc$variance_theta[1,1], pvalue_full_a,
-            stage2_abc$theta[2,1], stage2_abc$variance_theta[2,2], pvalue_full_b,
-            stage2_abc$theta[3,1], stage2_abc$variance_theta[3,3], pvalue_full_co,
+            stage2_a$theta, sqrt(stage2_a$variance_theta), pvalue_direct_a,
+            stage2_b$theta, sqrt(stage2_b$variance_theta), pvalue_direct_b,
+            stage2_abc$theta[1,1], sqrt(stage2_abc$variance_theta[1,1]), pvalue_full_a,
+            stage2_abc$theta[2,1], sqrt(stage2_abc$variance_theta[2,2]), pvalue_full_b,
+            stage2_abc$theta[3,1], sqrt(stage2_abc$variance_theta[3,3]), pvalue_full_co,
             f_statistic, f_pvalue)
 
 write.table(t(output), file = opt$out, quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE, append = TRUE)

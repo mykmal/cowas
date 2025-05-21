@@ -21,85 +21,78 @@ ukb_chr16\nukb_chr17\nukb_chr18\nukb_chr19\nukb_chr20\n\
 ukb_chr21\nukb_chr22\n" > TEMP_plink_files.txt
 
 plink2 --pmerge-list TEMP_plink_files.txt pfile \
-       --threads 30 \
-       --memory 120000 \
+       --threads 32 \
+       --memory 124000 \
        --pmerge-list-dir data_raw \
        --out TEMP_merged
 
+Rscript --vanilla qc/preprocess_ukb_helper1.R
+
 plink2 --pfile TEMP_merged \
-       --threads 30 \
-       --memory 120000 \
-       --mind 0.01 \
+       --threads 32 \
+       --memory 124000 \
+       --keep TEMP_high_quality_samples.txt \
        --make-pgen \
        --out TEMP_1
 
-Rscript --vanilla qc/preprocess_ukb_helper1.R
-
 plink2 --pfile TEMP_1 \
-       --threads 30 \
-       --memory 120000 \
-       --keep TEMP_high_quality_samples.txt \
+       --threads 32 \
+       --memory 124000 \
+       --geno 0.1 \
        --make-pgen \
        --out TEMP_2
 
 plink2 --pfile TEMP_2 \
-       --threads 30 \
-       --memory 120000 \
-       --geno 0.1 \
+       --threads 32 \
+       --memory 124000 \
+       --min-ac 100 \
        --make-pgen \
        --out TEMP_3
 
 plink2 --pfile TEMP_3 \
-       --threads 30 \
-       --memory 120000 \
-       --min-ac 100 \
+       --threads 32 \
+       --memory 124000 \
+       --min-af 0.01 \
        --make-pgen \
        --out TEMP_4
 
 plink2 --pfile TEMP_4 \
-       --threads 30 \
-       --memory 120000 \
-       --min-af 0.01 \
-       --make-pgen \
-       --out TEMP_5
-
-plink2 --pfile TEMP_5 \
-       --threads 30 \
-       --memory 120000 \
+       --threads 32 \
+       --memory 124000 \
        --hwe 1e-15 midp \
        --nonfounders \
        --make-pgen \
+       --out TEMP_5
+
+awk -v FS='\t' '$3 !~ /^rs/ {print $3}' TEMP_5.pvar > TEMP_no_rsid.txt
+
+plink2 --pfile TEMP_5 \
+       --threads 32 \
+       --memory 124000 \
+       --exclude TEMP_no_rsid.txt \
+       --make-pgen \
        --out TEMP_6
 
-awk -v FS='\t' '$3 !~ /^rs/ {print $3}' TEMP_6.pvar > TEMP_no_rsid.txt
+awk -v FS='\t' '($4 == "A" && $5 == "T") || ($4 == "T" && $5 == "A") || ($4 == "C" && $5 == "G") || ($4 == "G" && $5 == "C") {print $3}' TEMP_6.pvar > TEMP_palindromic.txt
 
 plink2 --pfile TEMP_6 \
-       --threads 30 \
-       --memory 120000 \
-       --exclude TEMP_no_rsid.txt \
+       --threads 32 \
+       --memory 124000 \
+       --exclude TEMP_palindromic.txt \
        --make-pgen \
        --out TEMP_7
 
-awk -v FS='\t' '($4 == "A" && $5 == "T") || ($4 == "T" && $5 == "A") || ($4 == "C" && $5 == "G") || ($4 == "G" && $5 == "C") {print $3}' TEMP_7.pvar > TEMP_palindromic.txt
-
 plink2 --pfile TEMP_7 \
-       --threads 30 \
-       --memory 120000 \
-       --exclude TEMP_palindromic.txt \
-       --make-pgen \
-       --out TEMP_8
-
-plink2 --pfile TEMP_8 \
-       --threads 30 \
-       --memory 120000 \
+       --threads 32 \
+       --memory 124000 \
        --indep-pairwise 1000 100 0.8 \
        --out TEMP_indep_variants
 
-plink2 --pfile TEMP_8 \
-       --threads 30 \
-       --memory 120000 \
+plink2 --pfile TEMP_7 \
+       --threads 32 \
+       --memory 124000 \
        --extract TEMP_indep_variants.prune.in \
-       --make-pgen psam-cols=sex \
+       --make-pgen psam-cols= \
        --out data_cleaned/genotypes
 
 rm TEMP*
@@ -133,28 +126,28 @@ printf "1 48000000 52000000\n\
 20 32000000 34500000\n" > TEMP_long_range_ld.txt
 
 plink2 --pfile data_cleaned/genotypes \
-       --threads 30 \
-       --memory 120000 \
+       --threads 32 \
+       --memory 124000 \
        --exclude bed1 TEMP_long_range_ld.txt \
        --make-pgen \
        --out TEMP_PCA_1
 
 plink2 --pfile TEMP_PCA_1 \
-       --threads 30 \
-       --memory 120000 \
+       --threads 32 \
+       --memory 124000 \
        --indep-pairwise 1000 100 0.1 \
        --out TEMP_PCA_indep_variants
 
 plink2 --pfile TEMP_PCA_1 \
-       --threads 30 \
-       --memory 120000 \
+       --threads 32 \
+       --memory 124000 \
        --extract TEMP_PCA_indep_variants.prune.in \
        --make-pgen \
        --out TEMP_PCA_2
 
 plink2 --pfile TEMP_PCA_2 \
-       --threads 30 \
-       --memory 120000 \
+       --threads 32 \
+       --memory 124000 \
        --pca 20 \
        --out TEMP_top20_pcs
 
@@ -165,31 +158,31 @@ rm data_cleaned/covariates_nopc.tsv
 Rscript --vanilla qc/preprocess_ukb_helper3.R
 
 plink2 --pfile data_cleaned/genotypes \
-       --threads 30 \
-       --memory 120000 \
+       --threads 32 \
+       --memory 124000 \
        --extract TEMP_mutual_LDL_variants.txt \
-       --make-pgen psam-cols=sex \
+       --make-pgen psam-cols= \
        --out data_cleaned/genotypes_subset_for_LDL
 
 plink2 --pfile data_cleaned/genotypes \
-       --threads 30 \
-       --memory 120000 \
-       --extract TEMP_mutual_AD_variants.txt \
-       --make-pgen psam-cols=sex \
-       --out data_cleaned/genotypes_subset_for_AD
+       --threads 32 \
+       --memory 124000 \
+       --extract TEMP_mutual_AD_EADB_variants.txt \
+       --make-pgen psam-cols= \
+       --out data_cleaned/genotypes_subset_for_AD_EADB
 
 plink2 --pfile data_cleaned/genotypes \
-       --threads 30 \
-       --memory 120000 \
+       --threads 32 \
+       --memory 124000 \
        --extract TEMP_mutual_AD_IGAP_variants.txt \
-       --make-pgen psam-cols=sex \
+       --make-pgen psam-cols= \
        --out data_cleaned/genotypes_subset_for_AD_IGAP
 
 plink2 --pfile data_cleaned/genotypes \
-       --threads 30 \
-       --memory 120000 \
+       --threads 32 \
+       --memory 124000 \
        --extract TEMP_mutual_PD_variants.txt \
-       --make-pgen psam-cols=sex \
+       --make-pgen psam-cols= \
        --out data_cleaned/genotypes_subset_for_PD
 
 rm TEMP*
