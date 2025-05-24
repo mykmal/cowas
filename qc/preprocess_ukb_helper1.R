@@ -78,7 +78,7 @@ setorder(ukb_main_dataset, IID)
 setorder(olink_data, IID)
 
 # Put the samples in a format compatible with PLINK's --keep command
-plink_keep_samples <- as.data.frame(cbind(names(ukb_main_dataset), names(ukb_main_dataset)))
+plink_keep_samples <- as.data.frame(cbind(ukb_main_dataset$IID, ukb_main_dataset$IID))
 names(plink_keep_samples) <- c("#FID", "IID")
 
 # Save the formatted datasets
