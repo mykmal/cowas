@@ -15,7 +15,7 @@ setnames(ldl_gwas, c("variant_id", "effect_allele", "other_allele", "beta", "sta
 
 # Check for duplicated variants and remove any that are present in the GWAS
 ldl_duplicated_variants <- ldl_gwas[duplicated(variant_id), ]$variant_id
-message("\nNOTE: ", nrow(ldl_gwas[variant_id %in% ldl_duplicated_variants, ]), " duplicated rows removed from the Graham et al. GWAS.")
+message("\nNOTE: ", nrow(ldl_gwas[variant_id %in% ldl_duplicated_variants, ]), " rows with duplicated rsIDs removed from the Graham et al. GWAS.")
 ldl_gwas <- ldl_gwas[!(variant_id %in% ldl_duplicated_variants), ]
 
 # Subset to the variants included in both the LDL GWAS and the UKB imputed genotype data
@@ -53,7 +53,7 @@ eadb_gwas <- fread(file = "data_raw/GCST90027158_buildGRCh38.tsv", header = TRUE
 
 # Check for duplicated variants and remove any that are present in the GWAS
 eadb_duplicated_variants <- eadb_gwas[duplicated(variant_id), ]$variant_id
-message("NOTE: ", nrow(eadb_gwas[variant_id %in% eadb_duplicated_variants, ]), " duplicated rows removed from the Bellenguez et al. GWAS.")
+message("NOTE: ", nrow(eadb_gwas[variant_id %in% eadb_duplicated_variants, ]), " rows with duplicated rsIDs removed from the Bellenguez et al. GWAS.")
 eadb_gwas <- eadb_gwas[!(variant_id %in% eadb_duplicated_variants), ]
 
 # Subset to the variants included in both the EADB GWAS and the UKB imputed genotype data
@@ -96,7 +96,7 @@ setnames(igap_gwas, c("variant_id", "effect_allele", "other_allele", "beta", "st
 
 # Check for duplicated variants and remove any that are present in the GWAS
 igap_duplicated_variants <- igap_gwas[duplicated(variant_id), ]$variant_id
-message("NOTE: ", nrow(igap_gwas[variant_id %in% igap_duplicated_variants, ]), " rows with duplicated variants were removed from the Kunkle et al. GWAS.")
+message("NOTE: ", nrow(igap_gwas[variant_id %in% igap_duplicated_variants, ]), " rows with duplicated rsIDs removed from the Kunkle et al. GWAS.")
 igap_gwas <- igap_gwas[!(variant_id %in% igap_duplicated_variants), ]
 
 # Subset to the variants included in both the IGAP GWAS and the UKB imputed genotype data
@@ -139,7 +139,7 @@ setnames(pd_gwas, c("variant_id", "effect_allele", "other_allele", "beta", "stan
 
 # Check for duplicated variants and remove any that are present in the GWAS
 pd_duplicated_variants <- pd_gwas[duplicated(variant_id), ]$variant_id
-message("NOTE: ", nrow(pd_gwas[variant_id %in% pd_duplicated_variants, ]), " duplicated rows removed from the Nalls et al. GWAS.\n")
+message("NOTE: ", nrow(pd_gwas[variant_id %in% pd_duplicated_variants, ]), " rows with duplicated rsIDs removed from the Nalls et al. GWAS.\n")
 pd_gwas <- pd_gwas[!(variant_id %in% pd_duplicated_variants), ]
 
 # Subset to the variants included in both the PD GWAS and the UKB imputed genotype data
