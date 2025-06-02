@@ -3,7 +3,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=128
 #SBATCH --mem=420gb
-#SBATCH --time=96:00:00
+#SBATCH --time=12:00:00
 #SBATCH --partition=msismall,msilarge,msibigmem,msilong
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=malak039@umn.edu
@@ -17,6 +17,7 @@ plink2 --pfile data_cleaned/genotypes \
        --threads 128 \
        --memory 420000 \
        --pheno data_cleaned/proteins.tsv \
+       --no-input-missing-phenotype \
        --pheno-quantile-normalize \
        --covar data_cleaned/covariates.tsv \
        --covar-variance-standardize \
