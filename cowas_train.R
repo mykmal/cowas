@@ -471,7 +471,7 @@ cor_test_a <- stats::cor.test(expression[test_indices, ][[opt$protein_a]], imput
                               alternative = "two.sided", method = "pearson")
 cor_test_b <- stats::cor.test(expression[test_indices, ][[opt$protein_b]], imputed_test_b,
                               alternative = "two.sided", method = "pearson")
-cor_test_co <- stats::cor.test(expression[test_indices, ][["co-expression"]], imputed_test_co,
+cor_test_co <- stats::cor.test(expression[test_indices, ][["coexpression"]], imputed_test_co,
                                alternative = "two.sided", method = "pearson")
 
 # Check that all three models pass the correlation threshold
