@@ -6,10 +6,12 @@ library(data.table)
 sumstat_files <- list.files("pqtl_associations/", pattern = "*.sumstats.tsv")
 protein_names <- gsub(".sumstats.tsv", "", sumstat_files, fixed = TRUE)
 
+dir.create("general_predictors")
+
 # Part 1: extract predictors from among all variants
 
-dir.create("predictors_top_global_beta")
-dir.create("predictors_top_global_pval")
+dir.create("general_predictors/predictors_top_global_beta")
+dir.create("general_predictors/predictors_top_global_pval")
 
 for (protein in protein_names) {
   sumstats <- fread(file = paste0("pqtl_associations/", protein, ".sumstats.tsv"),
@@ -20,22 +22,22 @@ for (protein in protein_names) {
   sumstats[, BETA := abs(BETA)]
   sumstats <- sumstats[order(sumstats$BETA, decreasing = TRUE), ]
   sumstats_top <- sumstats[1:100, ]
-  write.table(t(sumstats_top$ID), file = paste0("predictors_top_global_beta/", protein, ".variants.txt"),
+  write.table(t(sumstats_top$ID), file = paste0("general_predictors/predictors_top_global_beta/", protein, ".variants.txt"),
               quote = FALSE, sep = "\n", row.names = FALSE, col.names = FALSE)
   
   # Select 100 variants with the smallest P values
   sumstats[, P := as.numeric(P)]
   sumstats <- sumstats[order(sumstats$P, decreasing = FALSE), ]
   sumstats_top <- sumstats[1:100, ]
-  write.table(t(sumstats_top$ID), file = paste0("predictors_top_global_pval/", protein, ".variants.txt"),
+  write.table(t(sumstats_top$ID), file = paste0("general_predictors/predictors_top_global_pval/", protein, ".variants.txt"),
               quote = FALSE, sep = "\n", row.names = FALSE, col.names = FALSE)
 }
 
 
 # Part 2: extract predictors from variants in the cis region
 
-dir.create("predictors_top_cis_beta")
-dir.create("predictors_top_cis_pval")
+dir.create("general_predictors/predictors_top_cis_beta")
+dir.create("general_predictors/predictors_top_cis_pval")
 
 annotations <- fread(file = "protein_annotations_derived/4_olink_annotations_lifted.tsv",
                      header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE,
@@ -79,14 +81,14 @@ for (protein in protein_names) {
   sumstats[, BETA := abs(BETA)]
   sumstats <- sumstats[order(sumstats$BETA, decreasing = TRUE), ]
   sumstats_top <- sumstats[1:n_snps, ]
-  write.table(t(sumstats_top$ID), file = paste0("predictors_top_cis_beta/", protein, ".variants.txt"),
+  write.table(t(sumstats_top$ID), file = paste0("general_predictors/predictors_top_cis_beta/", protein, ".variants.txt"),
               quote = FALSE, sep = "\n", row.names = FALSE, col.names = FALSE)
   
   # Select up to 100 cis-variants with the smallest P values
   sumstats[, P := as.numeric(P)]
   sumstats <- sumstats[order(sumstats$P, decreasing = FALSE), ]
   sumstats_top <- sumstats[1:n_snps, ]
-  write.table(t(sumstats_top$ID), file = paste0("predictors_top_cis_pval/", protein, ".variants.txt"),
+  write.table(t(sumstats_top$ID), file = paste0("general_predictors/predictors_top_cis_pval/", protein, ".variants.txt"),
               quote = FALSE, sep = "\n", row.names = FALSE, col.names = FALSE)
 }
 

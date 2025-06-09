@@ -1,10 +1,17 @@
 # This script extracts a set of initial predictors to be used when training COWAS imputation models
 # from among cis-variants in the intersection of UKB genotype data and outcome trait GWAS data.
 
+# Specify the name of the outcome trait
+outcome <- "PD"
+
 library(data.table)
 
+if (! dir.exists("gwas_specific_predictors")) {
+  dir.create("gwas_specific_predictors")
+}
+
 # Load the list of variants present in the outcome trait GWAS
-variants <- fread(file = "data_cleaned/genotypes_subset_for_PD.pvar",
+variants <- fread(file = paste0("data_cleaned/genotypes_subset_for_", outcome, ".pvar"),
                   header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE,
                   select = "ID", verbose = FALSE)
 
@@ -12,7 +19,7 @@ variants <- fread(file = "data_cleaned/genotypes_subset_for_PD.pvar",
 sumstat_files <- list.files("pqtl_associations/", pattern = "*.sumstats.tsv")
 protein_names <- gsub(".sumstats.tsv", "", sumstat_files, fixed = TRUE)
 
-dir.create("predictors_top_cis_beta_pd")
+dir.create(paste0("gwas_specific_predictors/predictors_top_cis_beta_", tolower(outcome)))
 
 # Load position information for the genes coding each protein
 annotations <- fread(file = "protein_annotations_derived/4_olink_annotations_lifted.tsv",
@@ -60,7 +67,7 @@ for (protein in protein_names) {
   sumstats[, BETA := abs(BETA)]
   sumstats <- sumstats[order(sumstats$BETA, decreasing = TRUE), ]
   sumstats_top <- sumstats[1:n_snps, ]
-  write.table(t(sumstats_top$ID), file = paste0("predictors_top_cis_beta_pd/", protein, ".variants.txt"),
+  write.table(t(sumstats_top$ID), file = paste0("gwas_specific_predictors/predictors_top_cis_beta_", tolower(outcome), "/", protein, ".variants.txt"),
               quote = FALSE, sep = "\n", row.names = FALSE, col.names = FALSE)
 }
 

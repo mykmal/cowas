@@ -10,27 +10,31 @@ option_list <- list(
     c("--protein_a"),
     action = "store",
     type = "character",
+    default = NA,
     help = "Name (or identifier) of the first protein in the co-expression pair. [required]"
   ),
   make_option(
     c("--protein_b"),
     action = "store",
     type = "character",
+    default = NA,
     help = "Name (or identifier) of the second protein in the co-expression pair. [required]"
   ),
   make_option(
     c("--genotypes_a"),
     action = "store",
     type = "character",
+    default = NA,
     help = "Path to a genotype matrix of variants to use as predictors for the first protein.
             This should be a tab-separated file with a header line followed by one line per
-            individual, containing individual IDs in the first column and variants with ALT
+            individual, containing individual IDs in the first column and variants with effect
             allele dosages coded as 0..2 in the remaining columns. [required]"
   ),
   make_option(
     c("--genotypes_b"),
     action = "store",
     type = "character",
+    default = NA,
     help = "Path to a genotype matrix of variants to use as predictors for the second protein,
             formatted the same as --genotypes_a. [required]"
   ),
@@ -38,6 +42,7 @@ option_list <- list(
     c("--expression"),
     action = "store",
     type = "character",
+    default = NA,
     help = "Path to a matrix of expression levels for both proteins in the co-expression pair.
             This should be a tab-separated file with a header line followed by one line per
             individual, containing individual IDs in the first column and protein expression
@@ -47,6 +52,7 @@ option_list <- list(
     c("--covariates"),
     action = "store",
     type = "character",
+    default = NA,
     help = "Path to a matrix of expression covariates. If specified, this should be a
             tab-separated file with a header line followed by one line per individual,
             containing individual IDs in the first column and covariates in the remaining
@@ -76,7 +82,7 @@ option_list <- list(
     c("--cores"),
     action = "store",
     type = "integer",
-    default = 1,
+    default = 1L,
     help = "Number of cores to use for parallelization. The default value disables parallel
             computation. [default: %default]"
   ),
@@ -115,7 +121,7 @@ option_list <- list(
 opt <- parse_args(OptionParser(option_list = option_list))
 
 if (anyNA(opt[-6])) {
-  stop("Some required parameters are missing. Run 'cowas_train.R --help' for usage info.")
+  stop("Some required parameters are missing. Run './cowas_train.R --help' for usage info.")
 }
 
 # Load the glmnet package if penalized regression is requested
@@ -124,7 +130,7 @@ if (opt$model == "ridge" || opt$model == "lasso" || opt$model == "elastic_net") 
 }
 
 # Enable parallel computation if requested
-if (opt$cores > 1L) {
+if (opt$cores > 1) {
   suppressMessages(library(doMC))
   registerDoMC(cores = opt$cores)
   
@@ -228,8 +234,8 @@ for (protein in c(opt$protein_a, opt$protein_b)) {
 # Free up memory
 rm(covariates)
 
-# Fill in missing genotype calls with the mode for each variant
-# This is a reasonable imputation method when the missingness rate is very low
+# Fill in missing genotype calls with the mode for each variant.
+# This is a reasonable imputation method when the missingness rate is very low.
 for (rsid in names(genotypes)[-1]) {
   
   mode <- names(which.max(table(genotypes[[rsid]])))
@@ -273,7 +279,7 @@ TrainStepwise <- function(z_a, z_b, z_both, x) {
   step_b <- stats::step(lm_null_b, scope = formula_full_b, direction = "both", trace = 0)
   
   # Estimate the expected conditional correlation if running the standard version of COWAS,
-  # otherwise compute the product of observed expression levels
+  # otherwise compute the product of observed expression levels.
   if (opt$product_based == FALSE) {
     pred_a <- predict(object = step_a, newdata = data_a, type = "response")
     pred_b <- predict(object = step_b, newdata = data_b, type = "response")
@@ -292,8 +298,8 @@ TrainStepwise <- function(z_a, z_b, z_both, x) {
   lm_null_co <- stats::lm(x_co ~ 1, data = data_co)
   step_co <- stats::step(lm_null_co, scope = formula_full_co, direction = "both", trace = 0)
   
-  # Store fitted model weights
-  # The intercept is ignored because it only captures non-genetic effects
+  # Store fitted model weights.
+  # The intercept is ignored because it only captures non-genetic effects.
   model_a_weights <- coef(step_a)[-1]
   model_b_weights <- coef(step_b)[-1]
   model_co_weights <- coef(step_co)[-1]
@@ -325,7 +331,7 @@ TrainGlmnet <- function(z_a, z_b, z_both, x, alpha) {
                        parallel = use_cores)
   
   # Estimate the expected conditional correlation if running the standard version of COWAS,
-  # otherwise compute the product of observed expression levels
+  # otherwise compute the product of observed expression levels.
   if (opt$product_based == FALSE) {
     pred_a <- predict(object = model_a, newx = z_a, s = "lambda.min", type = "response")
     pred_b <- predict(object = model_b, newx = z_b, s = "lambda.min", type = "response")
@@ -342,8 +348,8 @@ TrainGlmnet <- function(z_a, z_b, z_both, x, alpha) {
                         standardize = FALSE, intercept = TRUE,
                         parallel = use_cores)
   
-  # Store fitted model weights
-  # The intercept is ignored because it only captures non-genetic effects
+  # Store fitted model weights.
+  # The intercept is ignored because it only captures non-genetic effects.
   model_a_weights <- coef(model_a, s = "lambda.min")[-1, ]
   model_b_weights <- coef(model_b, s = "lambda.min")[-1, ]
   model_co_weights <- coef(model_co, s = "lambda.min")[-1, ]
@@ -460,7 +466,7 @@ if (sd(imputed_full_a) <= 0 || sd(imputed_full_b) <= 0 || sd(expression$coexpres
   stop("Imputed expression or co-expression is constant for at least one of the models in the pair ", opt$protein_a, "_", opt$protein_b, ". This pair will be skipped.")
 }
 
-# Compute correlation, the coefficient of determination, and an association P value on the test set
+# For each model, compute the correlation and an association P value on the test set
 cor_test_a <- stats::cor.test(expression[test_indices, ][[opt$protein_a]], imputed_test_a,
                               alternative = "two.sided", method = "pearson")
 cor_test_b <- stats::cor.test(expression[test_indices, ][[opt$protein_b]], imputed_test_b,

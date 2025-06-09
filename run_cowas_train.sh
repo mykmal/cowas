@@ -11,19 +11,19 @@
 
 # A file that lists pairs of proteins for which to train COWAS models.
 # This should be a text file with one tab-separated pair of protein names per line.
-PAIRS=pairs/hippie_pairs_autosomal.tsv
+PAIRS=pairs/autosomal_hippie_pairs.tsv
 
 # Folder with files listing the variants to use as predictors for each protein.
-# Files should be named <PROTEIN_NAME>.variants.txt and contain a single column of variant IDs.
-PREDICTORS=predictors_top_cis_beta_pd
+# Files should be named <ASSAY_NAME>.variants.txt and contain a single column of variant IDs.
+PREDICTORS=gwas_specific_predictors/predictors_top_cis_beta_pd
 
 # Base name of the genotype data (in PLINK 2.0 format)
 GENOTYPES=data_cleaned/genotypes_subset_for_PD
 
-# File name of the expression data (in plain text, long format)
+# File name of the expression data (in plain text, with samples in rows and proteins in columns)
 EXPRESSION=data_cleaned/proteins.tsv
 
-# File name of the covariate data (in plain text, long format)
+# File name of the covariate data (in plain text, with samples in rows and covariates in columns)
 COVARIATES=data_cleaned/covariates.tsv
 
 # Folder for storing COWAS weights
@@ -95,7 +95,7 @@ fi
 COWAS_TEMP=${OUT_DIR}/TEMP-${PROTEIN_A}-${PROTEIN_B}
 mkdir ${COWAS_TEMP}
 
-# Extract pre-screened variants for each protein and export their genotypes to a text file with 0..2 coding
+# Extract pre-screened variants for each protein and export their ALT allele genotypes to a text file with 0..2 coding
 plink2 --pfile ${GENOTYPES} \
        --silent \
        --threads ${CORES} \
