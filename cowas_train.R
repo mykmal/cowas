@@ -493,5 +493,5 @@ metrics <- c(opt$protein_a, opt$protein_b, n_expression,
 
 # Append the performance metrics to the output file
 write.table(t(metrics), file = paste0(opt$out_folder, "/performance_metrics.tsv"),
-            quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE, append = TRUE)
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE, col.names = FALSE, append = TRUE)
 

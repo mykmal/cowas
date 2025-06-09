@@ -23,14 +23,14 @@ for (protein in protein_names) {
   sumstats <- sumstats[order(sumstats$BETA, decreasing = TRUE), ]
   sumstats_top <- sumstats[1:100, ]
   write.table(t(sumstats_top$ID), file = paste0("general_predictors/predictors_top_global_beta/", protein, ".variants.txt"),
-              quote = FALSE, sep = "\n", row.names = FALSE, col.names = FALSE)
+              quote = FALSE, sep = "\n", eol = "\n", row.names = FALSE, col.names = FALSE)
   
   # Select 100 variants with the smallest P values
   sumstats[, P := as.numeric(P)]
   sumstats <- sumstats[order(sumstats$P, decreasing = FALSE), ]
   sumstats_top <- sumstats[1:100, ]
   write.table(t(sumstats_top$ID), file = paste0("general_predictors/predictors_top_global_pval/", protein, ".variants.txt"),
-              quote = FALSE, sep = "\n", row.names = FALSE, col.names = FALSE)
+              quote = FALSE, sep = "\n", eol = "\n", row.names = FALSE, col.names = FALSE)
 }
 
 
@@ -82,13 +82,13 @@ for (protein in protein_names) {
   sumstats <- sumstats[order(sumstats$BETA, decreasing = TRUE), ]
   sumstats_top <- sumstats[1:n_snps, ]
   write.table(t(sumstats_top$ID), file = paste0("general_predictors/predictors_top_cis_beta/", protein, ".variants.txt"),
-              quote = FALSE, sep = "\n", row.names = FALSE, col.names = FALSE)
+              quote = FALSE, sep = "\n", eol = "\n", row.names = FALSE, col.names = FALSE)
   
   # Select up to 100 cis-variants with the smallest P values
   sumstats[, P := as.numeric(P)]
   sumstats <- sumstats[order(sumstats$P, decreasing = FALSE), ]
   sumstats_top <- sumstats[1:n_snps, ]
   write.table(t(sumstats_top$ID), file = paste0("general_predictors/predictors_top_cis_pval/", protein, ".variants.txt"),
-              quote = FALSE, sep = "\n", row.names = FALSE, col.names = FALSE)
+              quote = FALSE, sep = "\n", eol = "\n", row.names = FALSE, col.names = FALSE)
 }
 

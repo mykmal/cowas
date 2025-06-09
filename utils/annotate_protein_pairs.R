@@ -13,7 +13,7 @@ olink_positions$chr <- paste0("chr", olink_positions$chr)
 
 # Save the position information
 write.table(olink_positions, file = "protein_annotations_derived/2_positions_hg38.bed",
-            quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE, col.names = FALSE)
 
 # Next, upload this file to the UCSC LiftOver web tool (https://genome.ucsc.edu/cgi-bin/hgLiftOver)
 # and convert it from hg38 to hg19. We set the minimum ratio of bases that must overlap to 0.1,
@@ -31,7 +31,7 @@ olink_annotations_lifted <- cbind(olink_annotations, lifted_positions)
 
 # Save the results
 write.table(olink_annotations_lifted, file = "protein_annotations_derived/4_olink_annotations_lifted.tsv",
-            quote = FALSE, sep = "\t", row.names = FALSE)
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE)
 
 # Load the HIPPIE database, which we downloaded from https://cbdm-01.zdv.uni-mainz.de/~mschaefer/hippie/download.php
 hippie_current <- read.delim("protein_annotations_downloaded/hippie_current.txt",
@@ -44,14 +44,14 @@ hippie_split_rows <- separate_longer_delim(hippie_split_rows, cols = "UniProt_B"
 
 # Save a version of the HIPPIE database with one protein identifier per row
 write.table(hippie_split_rows, file = "protein_annotations_derived/5_hippie_uncollapsed_ids.tsv",
-            quote = FALSE, sep = "\t", row.names = FALSE)
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE)
 
 # Create a vector of all protein identifiers in HIPPIE
 hippie_unique_proteins <- unique(c(hippie_split_rows$UniProt_A, hippie_split_rows$UniProt_B))
 
 # Save a file with all protein names
 write.table(hippie_unique_proteins, file = "protein_annotations_derived/6_hippie_unique_proteins.txt",
-            quote = FALSE, sep = "\n", row.names = FALSE, col.names = FALSE)
+            quote = FALSE, sep = "\n", eol = "\n", row.names = FALSE, col.names = FALSE)
 
 # Next, use the UniProt ID Mapping web tool (https://www.uniprot.org/id-mapping)
 # to map this file from "UniProt / UniProtKB AC/ID" to "UniProt / Gene Name"
@@ -64,7 +64,7 @@ uniprot_mapping_file_subset_to_ukb <- uniprot_mapping_from_hippie_to_genes[unipr
 
 # Save the results
 write.table(uniprot_mapping_file_subset_to_ukb, file = "protein_annotations_derived/8_uniprot_mapping_file_subset_to_ukb.tsv",
-            quote = FALSE, sep = "\t", row.names = FALSE)
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE)
 
 # Map from UniProt IDs to gene names for the second protein in each pair
 hippie_subset_to_ukb <- merge(hippie_split_rows, uniprot_mapping_file_subset_to_ukb,
@@ -79,7 +79,7 @@ names(hippie_subset_to_ukb)[8] <- "Gene_A"
 # Organize and save the results
 hippie_subset_to_ukb <- hippie_subset_to_ukb[, c("UniProt_A", "ID_A", "Gene_A", "UniProt_B", "ID_B", "Gene_B", "ConfidenceScore", "Evidence")]
 write.table(hippie_subset_to_ukb, file = "protein_annotations_derived/9_hippie_subset_to_ukb.tsv",
-            quote = FALSE, sep = "\t", row.names = FALSE)
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE)
 
 # Subset the annotations to autosomal genes
 autosomal_annotations <- olink_annotations_lifted[olink_annotations_lifted$chr_hg19 %in% 1:22, ]
@@ -90,7 +90,7 @@ hippie_subset_to_ukb_autosomal <- hippie_subset_to_ukb[hippie_subset_to_ukb$Gene
 
 # Save the results
 write.table(hippie_subset_to_ukb_autosomal, file = "protein_annotations_derived/10_hippie_subset_to_ukb_autosomal.tsv",
-            quote = FALSE, sep = "\t", row.names = FALSE)
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE)
 
 # Add columns for assay names to the autosomal HIPPIE table
 hippie_ukb_assays <- hippie_subset_to_ukb_autosomal
@@ -118,7 +118,7 @@ for (i in 1:nrow(hippie_ukb_assays)) {
 
 # Save the results
 write.table(hippie_ukb_assays, file = "protein_annotations_derived/11_hippie_subset_to_ukb_autosomal_with_assays.tsv",
-            quote = FALSE, sep = "\t", row.names = FALSE)
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE)
 
 # Drop all columns except the assay names, since that's the only information we need now
 hippie_ukb_assays_sorted <- hippie_ukb_assays[, c("Assay_A", "Assay_B")]
@@ -140,5 +140,5 @@ hippie_ukb_assays_sorted <- subset(hippie_ukb_assays_sorted, select = -pasted_id
 
 # Save the final table of protein pairs that will be used to train COWAS models
 write.table(hippie_ukb_assays_sorted, file = "pairs/autosomal_hippie_pairs.tsv",
-            quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE, col.names = FALSE)
 

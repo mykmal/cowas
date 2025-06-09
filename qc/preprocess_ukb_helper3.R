@@ -40,8 +40,10 @@ ldl_gwas <- na.omit(ldl_gwas)
 ldl_variants_keep <- ldl_gwas$variant_id
 
 # Save the processed GWAS summary data
-write.table(ldl_variants_keep, file = "TEMP_mutual_LDL_variants.txt", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
-fwrite(ldl_gwas, file = "data_cleaned/Graham_2021_LDL_GWAS.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
+write.table(ldl_variants_keep, file = "TEMP_mutual_LDL_variants.txt",
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE, col.names = FALSE)
+fwrite(ldl_gwas, file = "data_cleaned/Graham_2021_LDL_GWAS.tsv",
+       quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
 
 rm(ldl_gwas, ldl_duplicated_variants, ldl_variants_keep)
 
@@ -82,8 +84,10 @@ eadb_gwas <- na.omit(eadb_gwas)
 eadb_variants_keep <- eadb_gwas$variant_id
 
 # Save the processed EADB GWAS summary data
-write.table(eadb_variants_keep, file = "TEMP_mutual_AD_EADB_variants.txt", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
-fwrite(eadb_gwas, file = "data_cleaned/Bellenguez_2022_AD_GWAS.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
+write.table(eadb_variants_keep, file = "TEMP_mutual_AD_EADB_variants.txt",
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE, col.names = FALSE)
+fwrite(eadb_gwas, file = "data_cleaned/Bellenguez_2022_AD_GWAS.tsv",
+       quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
 
 rm(eadb_gwas, eadb_duplicated_variants, eadb_variants_keep)
 
@@ -124,8 +128,10 @@ igap_gwas <- na.omit(igap_gwas)
 igap_variants_keep <- igap_gwas$variant_id
 
 # Save the processed IGAP GWAS summary data
-write.table(igap_variants_keep, file = "TEMP_mutual_AD_IGAP_variants.txt", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
-fwrite(igap_gwas, file = "data_cleaned/Kunkle_2019_AD_GWAS.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
+write.table(igap_variants_keep, file = "TEMP_mutual_AD_IGAP_variants.txt",
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE, col.names = FALSE)
+fwrite(igap_gwas, file = "data_cleaned/Kunkle_2019_AD_GWAS.tsv",
+       quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
 
 rm(igap_gwas, igap_duplicated_variants, igap_variants_keep)
 
@@ -168,8 +174,10 @@ pd_gwas <- na.omit(pd_gwas)
 pd_variants_keep <- pd_gwas$variant_id
 
 # Save the processed GWAS summary data
-write.table(pd_variants_keep, file = "TEMP_mutual_PD_variants.txt", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
-fwrite(pd_gwas, file = "data_cleaned/Nalls_2019_PD_GWAS.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
+write.table(pd_variants_keep, file = "TEMP_mutual_PD_variants.txt",
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE, col.names = FALSE)
+fwrite(pd_gwas, file = "data_cleaned/Nalls_2019_PD_GWAS.tsv",
+       quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
 
 rm(pd_gwas, pd_duplicated_variants, pd_variants_keep)
 

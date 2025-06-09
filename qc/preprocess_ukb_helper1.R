@@ -82,8 +82,12 @@ plink_keep_samples <- as.data.frame(cbind(ukb_main_dataset$IID, ukb_main_dataset
 names(plink_keep_samples) <- c("#FID", "IID")
 
 # Save the formatted datasets
-fwrite(ukb_main_dataset, file = "data_cleaned/covariates_nopc.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
-fwrite(olink_data, file = "data_cleaned/proteins.tsv", quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
-write.table(protein_pairs, file = "pairs/all_protein_pairs.tsv", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
-write.table(plink_keep_samples, file = "TEMP_high_quality_samples.txt", quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+fwrite(ukb_main_dataset, file = "data_cleaned/covariates_nopc.tsv",
+       quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
+fwrite(olink_data, file = "data_cleaned/proteins.tsv",
+       quote = FALSE, na = "NA", sep = "\t", eol = "\n", compress = "none")
+write.table(protein_pairs, file = "pairs/all_protein_pairs.tsv",
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE, col.names = FALSE)
+write.table(plink_keep_samples, file = "TEMP_high_quality_samples.txt",
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE, col.names = TRUE)
 
