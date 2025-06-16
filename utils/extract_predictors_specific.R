@@ -22,7 +22,7 @@ protein_names <- gsub(".sumstats.tsv", "", sumstat_files, fixed = TRUE)
 dir.create(paste0("gwas_specific_predictors/predictors_top_cis_beta_", tolower(outcome)))
 
 # Load position information for the genes coding each protein
-annotations <- fread(file = "protein_annotations_derived/4_olink_annotations_lifted.tsv",
+annotations <- fread(file = "protein_annotations_derived/3_olink_annotations_lifted.tsv",
                      header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE,
                      select = c("Assay", "chr_hg19", "start_hg19", "end_hg19"), verbose = FALSE)
 

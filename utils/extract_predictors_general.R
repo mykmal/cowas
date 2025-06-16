@@ -39,7 +39,7 @@ for (protein in protein_names) {
 dir.create("general_predictors/predictors_top_cis_beta")
 dir.create("general_predictors/predictors_top_cis_pval")
 
-annotations <- fread(file = "protein_annotations_derived/4_olink_annotations_lifted.tsv",
+annotations <- fread(file = "protein_annotations_derived/3_olink_annotations_lifted.tsv",
                      header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE,
                      select = c("Assay", "chr_hg19", "start_hg19", "end_hg19"), verbose = FALSE)
 
