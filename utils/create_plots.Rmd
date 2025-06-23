@@ -1,7 +1,7 @@
 ---
 title: "COWAS plots"
 author: "Mykhaylo M. Malakhov"
-date: "2025-05-12"
+date: "2025-06-19"
 output: html_document
 ---
 
@@ -744,9 +744,9 @@ create_network(sig_pd_interaction, sig_pd_global, sig_pd_pwas_a, sig_pd_pwas_b,
 
 # Performance metrics and association results for the product-based version of COWAS
 
-The product-based version of COWAS predicts a simple interaction term between observed expression levels instead of predicting the interaction between their nonlinear genetic components. Here we plot performance metrics and association results for the product-based version of COWAS, which we applied to Alzheimer's disease.
+The product-based version of COWAS predicts a simple interaction term between observed expression levels instead of predicting the interaction between expression residuals after removing linear genetic effects on the mean. Here we plot performance metrics and association results for the product-based version of COWAS, which we applied to Alzheimer's disease.
 
-# Clean, summarize, and plot performance metrics
+## Clean, summarize, and plot performance metrics
 
 ```{r}
 ad_product_metrics <- fread("gwas_specific_weights/weights_cis_beta_elnet_ad_product/performance_metrics.tsv")
@@ -760,6 +760,7 @@ get_metrics(ad_product_metrics)
 
 setnames(ad_product_metrics, "SAMPLE_SIZE", "N_TRAINING")
 ad_product_metrics <- ad_product_metrics[, ..column_order]
+fwrite(ad_product_metrics, file = "figures_tables/csv/metrics_cis_beta_elnet_ad_product.csv")
 
 create_density_plot(ad_product_metrics, "Product-based COWAS performance")
 ggsave(filename = "figures_tables/plots/density_cis_beta_elnet_ad_product.png",
@@ -768,36 +769,53 @@ ggsave(filename = "figures_tables/plots/density_cis_beta_elnet_ad_product.png",
 
 # Clean, summarize, and plot association results
 
+First, we need to reload the performance metrics so that they can be formatted differently.
+
+```{r}
+ad_product_metrics <- fread("gwas_specific_weights/weights_cis_beta_elnet_ad_product/performance_metrics.tsv")
+
+ad_product_metrics[, c("R2_A", "R2_B", "R2_CO") := list(CORRELATION_A^2, CORRELATION_B^2, CORRELATION_CO^2)]
+
+ad_product_metrics[, c("PVAL_R_A", "PVAL_R_B", "PVAL_R_CO") := list(cor_test(CORRELATION_A, SAMPLE_SIZE), cor_test(CORRELATION_B, SAMPLE_SIZE), cor_test(CORRELATION_CO, SAMPLE_SIZE))]
+
+setnames(ad_product_metrics, "SAMPLE_SIZE", "N_TRAINING")
+
+ad_product_metrics[, ID := paste0(ID_A, "_", ID_B)]
+```
+
+Next, we can load the association results, clean and summarize them, and create plots.
+
 ```{r}
 # Load association results
 ad_product_results <- fread("association_results/results_cis_beta_elnet_ad_product.tsv")
 
-# Subset association results to well-imputed pairs
+# Concatenate IDs so that association results can be merged with performance metrics
 ad_product_results[, ID := paste0(ID_A, "_", ID_B)]
-ad_product_metrics[, ID := paste0(ID_A, "_", ID_B)]
 
-ad_product_results <- merge(ad_product_results, ad_product_metrics, by = "ID")
+merged_ad_product_results <- merge(ad_product_results, ad_product_metrics, by = "ID")
+rm(ad_product_results, ad_product_metrics)
 
-ad_product_results <- ad_product_results[CORRELATION_A > 0.03 & CORRELATION_B > 0.03 & CORRELATION_CO > 0.03, ]
+# Subset association results to well-imputed pairs
+merged_ad_product_results <- merged_ad_product_results[CORRELATION_A > 0.03 & CORRELATION_B > 0.03 & CORRELATION_CO > 0.03, ]
 
 # Sort and save the association results
-ad_product_results <- sort_results(ad_product_results)
-fwrite(ad_product_results, file = "figures_tables/csv/results_ad_product.csv")
+merged_ad_product_results <- sort_results(merged_ad_product_results)
+fwrite(merged_ad_product_results, file = "figures_tables/csv/results_ad_product.csv")
 
 # Extract interesting results
-product_bonferroni_pairs <- 0.05 / nrow(ad_product_results)
-product_bonferroni_individual <- 0.05 / length(unique(c(ad_product_results$ID_A, ad_product_results$ID_B)))
+product_bonferroni_pairs <- 0.05 / nrow(merged_ad_product_results)
+product_bonferroni_individual <- 0.05 / length(unique(c(merged_ad_product_results$ID_A, merged_ad_product_results$ID_B)))
 
-sig_product_global <- ad_product_results[PVAL_FSTAT_JOINT < product_bonferroni_pairs, ]
-sig_product_interaction <- ad_product_results[PVAL_THETA_JOINT_CO < product_bonferroni_pairs, ]
+sig_product_global <- merged_ad_product_results[PVAL_FSTAT_JOINT < product_bonferroni_pairs, ]
+sig_product_interaction <- merged_ad_product_results[PVAL_THETA_JOINT_CO < product_bonferroni_pairs, ]
 
-sig_product_pwas_a <- ad_product_results[PVAL_THETA_MARGINAL_A < product_bonferroni_individual, ]
-sig_product_pwas_b <- ad_product_results[PVAL_THETA_MARGINAL_B < product_bonferroni_individual, ]
+sig_product_pwas_a <- merged_ad_product_results[PVAL_THETA_MARGINAL_A < product_bonferroni_individual, ]
+sig_product_pwas_b <- merged_ad_product_results[PVAL_THETA_MARGINAL_B < product_bonferroni_individual, ]
 
-sig_product_pwas <- ad_product_results[PVAL_THETA_MARGINAL_A < product_bonferroni_individual | 
+sig_product_pwas <- merged_ad_product_results[PVAL_THETA_MARGINAL_A < product_bonferroni_individual | 
                                          PVAL_THETA_MARGINAL_B < product_bonferroni_individual, ]
 
-sig_product_any <- ad_product_results[PVAL_FSTAT_JOINT < product_bonferroni_pairs | 
+sig_product_any <- merged_ad_product_results[PVAL_FSTAT_JOINT < product_bonferroni_pairs | 
                                         PVAL_THETA_JOINT_CO < product_bonferroni_pairs | 
                                         PVAL_THETA_MARGINAL_A < product_bonferroni_individual | 
                                         PVAL_THETA_MARGINAL_B < product_bonferroni_individual, ]
