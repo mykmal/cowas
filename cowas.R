@@ -10,18 +10,21 @@ option_list <- list(
     c("--protein_a"),
     action = "store",
     type = "character",
+    default = NA,
     help = "Name (or identifier) of the first protein in the co-expression pair. [required]"
   ),
   make_option(
     c("--protein_b"),
     action = "store",
     type = "character",
+    default = NA,
     help = "Name (or identifier) of the second protein in the co-expression pair. [required]"
   ),
   make_option(
     c("--gwas"),
     action = "store",
     type = "character",
+    default = NA,
     help = "Path to a GWAS summary statistics file for the outcome trait of interest.
             This should be a tab-separated file with a header line followed by one line
             per variant, containing the following columns: variant_id, effect_allele,
@@ -53,6 +56,7 @@ option_list <- list(
     c("--ld_reference"),
     action = "store",
     type = "character",
+    default = NA,
     help = "Path to an individual-level genotype file to use for computing a linkage
             disequilibrium (LD) reference panel. This should be a tab-separated file with
             a header line followed by one line per individual, containing individual IDs
@@ -74,7 +78,7 @@ option_list <- list(
     c("--cores"),
     action = "store",
     type = "integer",
-    default = 1,
+    default = 1L,
     help = "Number of cores to use for parallelization. The default value disables
             multi-threaded computation. [default: %default]"
   )
@@ -83,7 +87,7 @@ option_list <- list(
 opt <- parse_args(OptionParser(option_list = option_list))
 
 if (anyNA(opt)) {
-  stop("Some required parameters are missing. Run 'cowas.R --help' for usage info.")
+  stop("Some required parameters are missing. Run './cowas.R --help' for usage info.")
 }
 
 # Set the requested number of cores
@@ -197,7 +201,7 @@ for (rsid in names(genotypes)) {
 
 # Make sure at least one variant remains in each model
 if (length(weights_a) < 1 || length(weights_b) < 1 || length(weights_co) < 1) {
-  stop("No variants remain in the intersection of model weights, GWAS effects, and the LD reference. Skipping the pair ", opt$protein_a, " - ", opt$protein_b, ".")
+  stop("No variants remain in the intersection of model weights, GWAS effects, and the LD reference. Skipping the pair ", opt$protein_a, "_", opt$protein_b, ".")
 }
 
 # Approximate the GWAS sample size
@@ -324,5 +328,6 @@ output <- c(opt$protein_a, opt$protein_b, n_reference, n_gwas,
             stage2_abc$theta[3,1], sqrt(stage2_abc$variance_theta[3,3]), pvalue_full_co,
             f_statistic, f_pvalue)
 
-write.table(t(output), file = opt$out, quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE, append = TRUE)
+write.table(t(output), file = opt$out,
+            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE, col.names = FALSE, append = TRUE)
 
