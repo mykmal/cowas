@@ -3,7 +3,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=124gb
-#SBATCH --time=96:00:00
+#SBATCH --time=50:00:00
 #SBATCH --partition=msismall,msilarge,msibigmem,msilong
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=malak039@umn.edu
@@ -59,7 +59,7 @@ plink2 --pfile TEMP_3 \
 plink2 --pfile TEMP_4 \
        --threads 32 \
        --memory 124000 \
-       --hwe 1e-15 midp \
+       --hwe 1e-15 0 midp \
        --nonfounders \
        --make-pgen \
        --out TEMP_5
@@ -94,11 +94,6 @@ plink2 --pfile TEMP_7 \
        --extract TEMP_indep_variants.prune.in \
        --make-pgen psam-cols= \
        --out data_cleaned/genotypes
-
-rm TEMP*
-
-# Extract ALT alleles, in order to keep them consistent across COWAS runs
-awk -v FS="\t" -v OFS="\t" '!/^#/ {print $3,$5}' data_cleaned/genotypes.pvar > data_cleaned/ukb_alt_alleles.tsv
 
 # Long-range LD regions in GRCh37 are from table S12 of https://www.biorxiv.org/content/10.1101/166298v1
 printf "1 48000000 52000000\n\

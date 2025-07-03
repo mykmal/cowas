@@ -55,21 +55,6 @@ ukb_main_dataset[, c("ASSESSMENT_CENTER", "MEASUREMENT_BATCH") := NULL]
 sorted_ukb_columns <- c("IID", "AGE", "AGE2", "SEX", "AGE_SEX", "AGE2_SEX", paste0("ASSESSMENT_CENTER_", center_ids), "AXIOM_ARRAY")
 ukb_main_dataset <- ukb_main_dataset[, ..sorted_ukb_columns]
 
-# Remove covariates that have NAs or have become constant after the subsetting
-for (column in names(ukb_main_dataset)[-1]) {
-  if (anyNA(ukb_main_dataset[[column]]) || var(ukb_main_dataset[[column]], na.rm = TRUE) <= 0) {
-    ukb_main_dataset[, (column) := NULL]
-  }
-}
-
-# Remove proteins that have become fully NA or constant after the subsetting.
-# Note that here we allow some NAs to remain because none of the individuals have data for all proteins.
-for (column in names(olink_data)[-1]) {
-  if (all(is.na(olink_data[[column]])) || var(olink_data[[column]], na.rm = TRUE) <= 0) {
-    olink_data[, (column) := NULL]
-  }
-}
-
 # Create a table listing the pairs of proteins to analyze
 protein_pairs <- t(combn(names(olink_data)[-1], 2))
 

@@ -6,30 +6,32 @@ GitHub repo: <https://github.com/mykmal/cowas>
 Model weights: <https://www.synapse.org/cowas>  
 Paper: <https://doi.org/10.1101/2024.10.02.24314813>
 
-COWAS is run on one pair of genes or proteins at a time. First, three models are trained on an individual-level reference dataset. One model predicts the expression of the first gene/protein, another model predicts the expression of the second gene/protein, and the third model predicts the conditional co-expression of the two genes/proteins. Then the fitted model weights are used to impute expression and co-expression into GWAS data for any trait of interest. Finally, the outcome trait is jointly tested for association with the imputed expression and co-expression levels. We provide trained imputation model weights for COWAS, enabling association testing to be performed using only GWAS summary statistics and a linkage disequilibrium (LD) reference panel.
+COWAS is run on one pair of genes or proteins at a time. In the first stage of COWAS, three models are trained on an individual-level dataset with genotype data and gene or protein expression data. One model predicts the expression of the first gene/protein, another model predicts the expression of the second gene/protein, and the third model predicts the co-expression of the two genes/proteins. We define co-expression either as the product of centered expression levels from the two proteins (product-based COWAS) or as the product of expression residuals from the single-protein imputation models (residual-based COWAS).
+
+In the second stage of COWAS, the fitted model weights are used to impute expression and co-expression into GWAS data for an outcome trait of interest. Then the outcome trait is jointly tested for association with the imputed expression and co-expression levels. The second stage of COWAS can also be carried out using GWAS summary statistics and a linkage disequilibrium (LD) reference panel. We provide trained imputation model weights for COWAS, enabling users to perform association testing for any outcome trait that has summary-level GWAS data available.
 
 ## Installation
 
-1. Download and unpack the COWAS repository from GitHub.
+1. Download the COWAS repository from GitHub and unpack it.
 ```bash
 wget https://github.com/mykmal/cowas/archive/refs/heads/main.zip
 unzip main.zip && rm main.zip
 mv cowas-main cowas && cd cowas
 ```
-2. Launch R and install the required packages optparse and data.table. If you wish to train your own imputation models then also install the package glmnet. If you wish to utilize parallel computation in glmnet then also install the package doMC. We used R 4.4.2, optparse 1.7.5, data.table 1.17.2, glmnet 4.1.8, and doMC 1.3.8.
+2. Launch R and install the required packages optparse and data.table. If you wish to train your own imputation models, then also install the package glmnet. If you wish to utilize parallel computation in glmnet, then also install the package doMC. We used R 4.4.2, optparse 1.7.5, data.table 1.17.6, glmnet 4.1-9, and doMC 1.3.8.
 ```R
 install.packages(c("optparse", "data.table", "glmnet", "doMC"))
 ```
-3. Download PLINK 2.0 and place it in a directory on your PATH. We used PLINK v2.0.0-a.6.13LM AVX2 AMD (15 May 2025), since we performed our analyses on an AMD-based cluster.
+3. Download PLINK 2.0 and place it in a directory on your PATH. We used the alpha 7 version of PLINK 2.0. In particular, we relied on PLINK v2.0.0-a.7LM AVX2 AMD (27 Jun 2025) because our cluster has modern AMD processors that support the AVX2 standard.
 ```bash
-wget https://s3.amazonaws.com/plink2-assets/alpha6/plink2_linux_amd_avx2_20250515.zip
-unzip plink2_linux_amd_avx2_20250515.zip && rm plink2_linux_amd_avx2_20250515.zip
+wget https://s3.amazonaws.com/plink2-assets/plink2_linux_amd_avx2_20250627.zip
+unzip plink2_linux_amd_avx2_20250627.zip && rm plink2_linux_amd_avx2_20250627.zip
 sudo mv plink2 /usr/local/bin/ && rm vcf_subset
 ```
 
 ## Usage guide
 
-This section describes how to perform a co-expression-wide association study (COWAS) for any disease or phenotype of interest.
+This section describes how to conduct a co-expression-wide association study (COWAS) for any disease or phenotype of interest.
 
 ### Conducting association tests using COWAS
 
@@ -40,9 +42,9 @@ To perform a COWAS analysis, you will need to provide the following four ingredi
 3. GWAS summary statistics for your outcome trait of interest
 4. Reference genotype data for computing an LD panel
 
-We provide weights for expression and co-expression imputation models trained on UK Biobank proteomic data at <https://www.synapse.org/cowas>. Several different sets of weights are available that were trained using different model choices or variant screening strategies, as described in our paper. Alternatively, you can train your own imputation models by following the instructions in the next section. The allele file must contain one row per variant and the following three columns: ID, REF, ALT. Throughout our documentation, ALT always denotes effect alleles and REF always denotes non-effect alleles. If you are using our weights, you should use the `cowas_model_alleles.tsv` file that we provide. The GWAS summary statistics file should contain one row per variant and the following five columns: variant_id, effect_allele, other_allele, z_score, n_samples. Finally, the reference genotype data must be stored in a plain-text file with one row per sample, one column per variant, and genotype calls or dosages coded on a 0..2 scale.
+We provide weights for expression and co-expression imputation models trained on UK Biobank proteomic data at <https://www.synapse.org/cowas>. Several different sets of weights are available that were trained using different model choices or variant screening strategies, as described in our paper. Alternatively, you can train your own imputation models by following the instructions in the next section. The allele file must contain one row per variant and the following three columns: ID, REF, ALT. Throughout our documentation, ALT always denotes effect alleles and REF always denotes non-effect alleles. If you are using our weights, you should use the `cowas_model_alleles.tsv` file that we provide. The GWAS summary statistics file should contain one row per variant and the following five columns: variant_id, effect_allele, other_allele, z_score, n_samples. Finally, the reference genotype data must be stored in a tab-separated file with one row per sample, one column per variant, and genotype calls or dosages coded on a 0..2 scale.
 
-In addition to the above ingredients, COWAS will ask for the name of each gene/protein in the current pair. You can also optionally set the output filename and the number of cores to use for parallelization. Run `./cowas.R --help` to see all available options and more details about required inputs. The `cowas.R` script must be run separately for each pair of genes/proteins that you wish to analyze. To perform COWAS association testing for an entire list of pairs, use the batch script `run_cowas.sh` in the `utils` folder of this repository. Instructions for batch association testing are provided in comments at the top of the script.
+In addition to the above ingredients, COWAS will ask for the name of each gene/protein in the current pair. You can also optionally set the output filename and the number of cores to use for parallelization. Run `./cowas.R --help` to see all available options and more details about required inputs. The `cowas.R` script must be run separately for each pair of genes/proteins that you wish to analyze. To perform COWAS association testing for an entire list of pairs, use the batch script `run_cowas.sh`. Instructions for batch association testing are provided in comments at the top of the script.
 
 Once COWAS finishes running, it will save association testing results to a tab-separated file with one line per pair. The output file columns have the following definitions:
 
@@ -76,7 +78,7 @@ The columns named PVAL_FSTAT_JOINT and PVAL_THETA_JOINT_CO correspond to *P* val
 
 If you have access to a dataset with individual-level genotype data and gene or protein expression data, you can train your own models for imputing expression and co-expression. Model training is performed for one pair of genes/proteins at a time using the script `cowas_train.R`. To view the required inputs and the documentation for each command-line option, run `./cowas_train.R --help` from your command line.
 
-The `cowas_train.R` script will save fitted model weights for each pair to an RDS file named `<ID_A>_<ID_B>.weights.rds` in the specified output folder, where `<ID_A>` and `<ID_B>` are the gene/protein identifiers that you provide. The RDS file stores a list of three named vectors, which contain genetic variant weights for the three models. In addition to saving model weights, `cowas_train.R` will also write model performance metrics to a tab-separated file named `performance_metrics.tsv` within the same output directory. (Note that if this file already exists, a new line will be appended to its end.) The performance metrics file contains one line for each pair and the following 15 columns:
+The `cowas_train.R` script will save fitted model weights for each pair to an RDS file named `<ID_A>_<ID_B>.weights.rds` in the specified output folder, where `<ID_A>` and `<ID_B>` are the gene/protein identifiers that you provide. The RDS file stores a list of three named vectors, which contain genetic variant weights for the three COWAS imputation models. In addition to saving model weights, `cowas_train.R` will also write model performance metrics to a tab-separated file named `performance_metrics.tsv` within the same output directory. (Note that if this file already exists, a new line will be appended to its end.) The performance metrics file contains one line for each pair and the following 15 columns:
 
 | Column         | Description |
 | -------------- | ----------- |
@@ -92,11 +94,11 @@ The `cowas_train.R` script will save fitted model weights for each pair to an RD
 | PVAL_B         | *P* value for the association between <ID_B> measured and predicted expression, evaluated on the held-out test set |
 | R2_B           | Coefficient of determination for the <ID_B> model, evaluated on the held-out test set |
 | NFEATURES_CO   | Number of variants with nonzero weights in the co-expression model |
-| CORRELATION_CO | Correlation between estimated and predicted co-expression, evaluated on a held-out 20% test set |
-| PVAL_CO        | *P* value for the association between estimated and predicted co-expression, evaluated on the held-out test set |
+| CORRELATION_CO | Correlation between measured and predicted co-expression, evaluated on a held-out 20% test set |
+| PVAL_CO        | *P* value for the association between measured and predicted co-expression, evaluated on the held-out test set |
 | R2_CO          | Coefficient of determination for the co-expression model, evaluated on the held-out test set |
 
-We also provide the batch script `run_cowas_train.sh`, located in the `utils` folder of this repository, to automate the model training process for a user-specified list of gene or protein pairs. For each pair, this shell script will extract predictor variants from a PLINK-format file, convert their genotypes to the required format for COWAS, and then run `cowas_train.R`. Instructions for batch model training are provided in comments at the top of the script.
+We also provide the batch script `run_cowas_train.sh` to automate the model training process for a user-specified list of gene or protein pairs. For each pair, this shell script will extract predictor variants from a PLINK-format file, convert their genotypes to the required format for COWAS, and then run `cowas_train.R`. Instructions for batch model training are provided in comments at the top of the script.
 
 Training COWAS models for all possible pairs of genes/proteins could be computationally infeasible for some users, so it is reasonable to only consider pairs that have prior evidence of interactions. In our paper, we applied COWAS to protein pairs that are coded by autosomal genes and listed in the [HIPPIE database](https://cbdm-01.zdv.uni-mainz.de/~mschaefer/hippie/index.php) of protein--protein interactions. The R script `annotate_protein_pairs.R` in the `utils` folder of this repository was used to identify those protein pairs, and instructions for running it are provided in comments within the script.
 
@@ -104,11 +106,11 @@ Training COWAS models for all possible pairs of genes/proteins could be computat
 
 The `cowas_train.R` script will use all variants in the provided genotype files as model inputs. To reduce the computational time needed for model training, we suggest pre-selecting an initial set of genetic variants for each gene or protein before running `cowas_train.R` or `run_cowas_train.sh`. In our paper, we compared three approaches for pre-screening variants:
 
-1. **Variants selected by *P* value.** One approach is to select genetic variants that have the most significant association with expression levels. That is, the top $d$ (e.g., top 100) most significant QTLs for the given gene/protein can be used as an initial set of predictors. Alternatively, you could consider including all variants that pass a nominal significance threshold.
+1. **Variants selected by *P* value.** One approach is to select genetic variants that have the most significant association with expression levels. That is, the top $d$ (e.g., top 100) most significant QTLs for the given gene/protein can be used as an initial set of predictors. Alternatively, you could consider including all variants that pass some significance threshold.
 2. **Variants selected by effect size.** Instead of ranking variants by their QTL *P* value, they can be ranked by the absolute value of their marginal correlation with expression levels. That is, the top $d$ (e.g., top 100) variants that have the largest correlations (in absolute value) with the given gene/protein are selected as an initial set of predictors.
 3. **Variants located in the *cis* region.** Since most of the genetic heritability of gene and protein expression is explained by *cis*-QTLs, the two previous approaches can be restricted to variants that act locally on the given gene or protein. In our paper, we considered the SNPs within a 500 kb window around the boundaries of the gene coding for a protein to be the *cis*-SNPs for that protein.
 
-We used the shell script `utils/map_pqtls.sh` to compute variant-protein associations for all proteins passing quality control in the UK Biobank plasma proteomics dataset. This script saves the resulting summary statistics to protein-specific, tab-separated files named `pqtls/<ID_NAME>.sumstats.tsv` with one line per variant and the following six columns: #CHROM, POS, ID, A1, BETA, P. The summary statistics can then be filtered to select an initial set of predictors for training expression imputation models according to either the significance of their association (P) or the strength of their correlation (BETA). For our paper, we pre-screened predictors using the scripts `utils/extract_predictors_general.R` and `utils/extract_predictors_specific.R`.
+We used the shell script `utils/map_pqtls.sh` to compute variant-protein associations for all proteins passing quality control in the UK Biobank plasma proteomics dataset. This script saves the resulting summary statistics to protein-specific, tab-separated files named `pqtl_associations/<ID_NAME>.sumstats.tsv` with one line per variant and the following six columns: #CHROM, POS, ID, A1, BETA, P. The summary statistics can then be filtered to select an initial set of predictors for training expression imputation models according to either the significance of their association (P) or the strength of their correlation (BETA). For our paper, we pre-screened predictors using the scripts `utils/extract_predictors_general.R` and `utils/extract_predictors_specific.R`.
 
 ## Appendix: Data preparation and QC
 
@@ -127,7 +129,7 @@ To obtain individual-level data from the UK Biobank you will need to submit an a
 * Data-Field 22828 within Category 100319 (WTCHG imputed genotypes)
 * Data-Field 30900 within Category 1839 (UK Biobank plasma proteomics data)
 
-Next, use PLINK to convert the genotype data to PLINK 2.0 binary format. Our QC scripts assume that the genotype data are stored in chromosome-specific files with filenames `ukb_chr<CHR>.pgen` + `ukb_chr<CHR>.psam` + `ukb_chr<CHR>.pvar`. Furthermore, we assume that the proteomic data are stored in a tab-separated file named `protein_npx_levels.tsv` beginning with a header line and containing the following four columns: eid, ins_index, protein_id, result. Finally, we assume that the remaining data fields listed above are stored in a single tab-separated file named `ukb_main_dataset.tsv` beginning with a header line and containing the following 7 columns: f.eid, f.31.0.0, f.54.0.0, f.21003.0.0, f.22000.0.0, f.22006.0.0, f.22020.0.0. Copy all of these files to a new subfolder named `data_raw` within your main COWAS folder.
+Next, use PLINK to convert the genotype data to PLINK 2.0 binary format. Our QC scripts assume that the genotype data are stored in chromosome-specific files with filenames `ukb_chr<CHR>.pgen` + `ukb_chr<CHR>.psam` + `ukb_chr<CHR>.pvar`. Furthermore, we assume that the proteomic data are stored in a tab-separated file named `protein_npx_levels.tsv` beginning with a header line and containing the following four columns: eid, ins_index, protein_id, result. Finally, we assume that the remaining data fields listed above are stored in a single tab-separated file named `ukb_main_dataset.tsv` beginning with a header line and containing the following seven columns: f.eid, f.31.0.0, f.54.0.0, f.21003.0.0, f.22000.0.0, f.22006.0.0, f.22020.0.0. Copy all of these files to a new subfolder named `data_raw` within your main COWAS folder.
 
 You will also need Data-Coding 143, which is a flat list containing the UniProt name for each assayed protein. Download the file `coding143.tsv` from <https://biobank.ndph.ox.ac.uk/ukb/coding.cgi?id=143> and place it in `data_raw`.
 
@@ -147,10 +149,10 @@ Run the shell script `qc/preprocess_ukb.sh` from within your main COWAS folder t
 
 1. Filter the UK Biobank data to obtain a set of high-quality, unrelated samples of White British ancestry, and subset the proteomic data to samples that were assessed at the initial visit.
 2. Subset the genotype data, proteomic data, and covariate data to the common set of samples present in all three datasets.
-3. Remove the protein GLIPR1 because it failed UK Biobank quality control, and create the file `pairs/all_protein_pairs.tsv` listing all pairs of proteins.
+3. Remove the protein GLIPR1 because it failed UK Biobank quality control. Then save the protein NPX levels to the file `data_cleaned/proteins.tsv` with one row per sample and one column per protein, and create the file `pairs/all_protein_pairs.tsv` listing all pairs of proteins.
 4. Remove variants from the UK Biobank genotype data that have a missingness rate $> 10\%$, have an MAC $< 100$, have an MAF $< 1\%$, fail a Hardy-Weinberg equilibrium test (*P* $< 10^{-15}$), lack an rsID, or are palindromic. Next, prune the remaining variants to $R^2 < 0.8$ with a 1,000 base pair (bp) window and a step size of 100 bp. The quality-controlled genotypes are saved to the files `genotypes.pgen` + `genotypes.psam` + `genotypes.pvar` within the subfolder `data_cleaned`.
 5. Compute the top 20 genetic principal components (PCs) from the quality-controlled genotype data. Following best practices, before computing PCs we further remove all variants in regions of long-range LD and then prune the remaining variants to a strict threshold of $R^2 < 0.1$ with a 1,000 bp window and a step size of 100 bp.
-6. Create the file `data_cleaned/covariates.tsv` with one row per sample and 48 columns for sample ID, age, age^2, sex, age \* sex, age^2 \* sex, UK Biobank assessment center (coded as 21 binary dummy variables), genotyping array (binary), and the first 20 genetic PCs. Save the protein NPX levels to the file `data_cleaned/proteins.tsv` with one row per sample and one column per protein.
+6. Create the file `data_cleaned/covariates.tsv` with one row per sample and 48 columns for sample ID, age, age^2, sex, age \* sex, age^2 \* sex, UK Biobank assessment center (coded as 21 binary dummy variables), genotyping array (binary), and the first 20 genetic PCs.
 7. For each GWAS, remove any rows that have duplicated rsIDs. After this, subset the quality-controlled genotype data and the GWAS data to a common set of variants, and flip the GWAS effect alleles and *Z* scores to match ALT alleles in the genotype data. The fully processed GWAS summary statistics, as well as copies of the genotype data subset to variants present in each GWAS, are saved to the subfolder `data_cleaned`.
 
 The `data_raw` subfolder can be deleted after the preprocessing script successfully finishes.
