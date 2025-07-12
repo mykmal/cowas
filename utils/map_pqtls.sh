@@ -22,7 +22,7 @@ plink2 --pfile data_cleaned/genotypes \
        --covar data_cleaned/covariates.tsv \
        --covar-variance-standardize \
        --glm omit-ref hide-covar cols=chrom,pos,beta,p \
-       --vif 1000 \
+       --vif 100000 \
        --out TEMP
 
 # Rename and move the results files

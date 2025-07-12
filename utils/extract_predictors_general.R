@@ -70,7 +70,10 @@ for (protein in protein_names) {
   sumstats <- sumstats[(CHROM == annotations_subset$chr_hg19) & (POS >= annotations_subset$start) & (POS <= annotations_subset$end), ]
   
   # Report proteins that have less than 100 cis-variants
-  if (nrow(sumstats) < 100) {
+  if (nrow(sumstats) == 0) {
+    message(protein, " has no cis-variants")
+    next
+  } else if (nrow(sumstats) < 100) {
     n_snps <- nrow(sumstats)
     message(protein, " has only ", n_snps, " cis-variants")
   } else {
