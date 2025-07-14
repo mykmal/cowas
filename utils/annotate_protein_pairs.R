@@ -1,5 +1,5 @@
 # This script provides the code we used to identify pairs of proteins in the UK Biobank (UKB)
-# that have some prior evidence of interactions and are coded by autosomal genes.
+# that have some prior evidence of interactions and are encoded by autosomal genes.
 
 library(tidyr)
 
@@ -21,7 +21,7 @@ olink_annotations <- olink_annotations[olink_annotations$Assay %in% assayed_prot
 olink_positions <- olink_annotations[, c("chr", "gene_start", "gene_end")]
 olink_positions$chr <- paste0("chr", olink_positions$chr)
 
-# Save the position information
+# Save the original hg38 position information
 write.table(olink_positions, file = "protein_annotations_derived/1_positions_hg38.bed",
             quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE, col.names = FALSE)
 
@@ -35,7 +35,7 @@ lifted_positions <- read.delim("protein_annotations_derived/2_positions_hg19_lif
 names(lifted_positions) <- c("chr_hg19", "start_hg19", "end_hg19")
 lifted_positions$chr_hg19 <- gsub("chr", "", lifted_positions$chr_hg19, fixed = TRUE)
 
-# Add the lifted positions back into the annotation file
+# Replace the original hg38 positions with the lifted hg19 positions
 olink_annotations <- subset(olink_annotations, select = -c(chr, gene_start, gene_end))
 olink_annotations_lifted <- cbind(olink_annotations, lifted_positions)
 
@@ -52,44 +52,34 @@ names(hippie_current) <- c("UniProt_A", "ID_A", "UniProt_B", "ID_B", "Confidence
 hippie_split_rows <- separate_longer_delim(hippie_current, cols = "UniProt_A", delim = ",")
 hippie_split_rows <- separate_longer_delim(hippie_split_rows, cols = "UniProt_B", delim = ",")
 
-# Save a version of the HIPPIE database with one protein identifier per row
-write.table(hippie_split_rows, file = "protein_annotations_derived/4_hippie_uncollapsed_ids.tsv",
-            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE)
-
 # Create a vector of all protein identifiers in HIPPIE
 hippie_unique_proteins <- unique(c(hippie_split_rows$UniProt_A, hippie_split_rows$UniProt_B))
 
-# Save a file with all protein names
-write.table(hippie_unique_proteins, file = "protein_annotations_derived/5_hippie_unique_proteins.txt",
+# Save a file with all HIPPIE protein names
+write.table(hippie_unique_proteins, file = "protein_annotations_derived/4_hippie_unique_proteins.txt",
             quote = FALSE, sep = "\n", eol = "\n", row.names = FALSE, col.names = FALSE)
 
 # Next, use the UniProt ID Mapping web tool (https://www.uniprot.org/id-mapping)
 # to map this file from "UniProt / UniProtKB AC/ID" to "UniProt / Gene Name"
 
 # Load the results from the ID Mapping web tool
-uniprot_mapping_from_hippie_to_genes <- read.delim("protein_annotations_derived/6_uniprot_mapping_from_hippie_to_genes.tsv")
+uniprot_mapping <- read.delim("protein_annotations_derived/5_uniprot_mapping_from_hippie_to_genes.tsv")
 
-# Subset the UniProt mapping file to proteins found in UKB
-uniprot_mapping_file_subset_to_ukb <- uniprot_mapping_from_hippie_to_genes[uniprot_mapping_from_hippie_to_genes$To %in% c(olink_annotations_lifted$Assay, olink_annotations_lifted$HGNC.symbol), ]
-
-# Save the results
-write.table(uniprot_mapping_file_subset_to_ukb, file = "protein_annotations_derived/7_uniprot_mapping_file_subset_to_ukb.tsv",
-            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE)
+# Subset the UniProt mapping file to proteins found in the UKB
+uniprot_mapping_subset_to_ukb <- uniprot_mapping[uniprot_mapping$To %in% c(olink_annotations_lifted$Assay, olink_annotations_lifted$HGNC.symbol), ]
 
 # Map from UniProt IDs to gene names for the second protein in each pair
-hippie_subset_to_ukb <- merge(hippie_split_rows, uniprot_mapping_file_subset_to_ukb,
+hippie_subset_to_ukb <- merge(hippie_split_rows, uniprot_mapping_subset_to_ukb,
                               by.x = "UniProt_B", by.y = "From")
 names(hippie_subset_to_ukb)[7] <- "Gene_B"
 
 # Map from UniProt IDs to gene names for the first protein in each pair
-hippie_subset_to_ukb <- merge(hippie_subset_to_ukb, uniprot_mapping_file_subset_to_ukb,
+hippie_subset_to_ukb <- merge(hippie_subset_to_ukb, uniprot_mapping_subset_to_ukb,
                               by.x = "UniProt_A", by.y = "From")
 names(hippie_subset_to_ukb)[8] <- "Gene_A"
 
-# Organize and save the results
+# Organize the results
 hippie_subset_to_ukb <- hippie_subset_to_ukb[, c("UniProt_A", "ID_A", "Gene_A", "UniProt_B", "ID_B", "Gene_B", "ConfidenceScore", "Evidence")]
-write.table(hippie_subset_to_ukb, file = "protein_annotations_derived/8_hippie_subset_to_ukb.tsv",
-            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE)
 
 # Subset the annotations to autosomal genes
 autosomal_annotations <- olink_annotations_lifted[olink_annotations_lifted$chr_hg19 %in% 1:22, ]
@@ -97,10 +87,6 @@ autosomal_annotations <- olink_annotations_lifted[olink_annotations_lifted$chr_h
 # Subset the HIPPIE table to pairs of autosomal genes
 hippie_subset_to_ukb_autosomal <- hippie_subset_to_ukb[hippie_subset_to_ukb$Gene_A %in% c(autosomal_annotations$Assay, autosomal_annotations$HGNC.symbol) &
                                                          hippie_subset_to_ukb$Gene_B %in% c(autosomal_annotations$Assay, autosomal_annotations$HGNC.symbol), ]
-
-# Save the results
-write.table(hippie_subset_to_ukb_autosomal, file = "protein_annotations_derived/9_hippie_subset_to_ukb_autosomal.tsv",
-            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE)
 
 # Add columns for assay names to the autosomal HIPPIE table
 hippie_ukb_assays <- hippie_subset_to_ukb_autosomal
@@ -126,10 +112,6 @@ for (i in 1:nrow(hippie_ukb_assays)) {
   }
 }
 
-# Save the results
-write.table(hippie_ukb_assays, file = "protein_annotations_derived/10_hippie_subset_to_ukb_autosomal_with_assays.tsv",
-            quote = FALSE, sep = "\t", eol = "\n", row.names = FALSE)
-
 # Drop all columns except the assay names, since that's the only information we need now
 hippie_ukb_assays_sorted <- hippie_ukb_assays[, c("Assay_A", "Assay_B")]
 
@@ -138,9 +120,9 @@ hippie_ukb_assays_sorted <- hippie_ukb_assays_sorted[hippie_ukb_assays_sorted$As
 
 # Sort the columns within each row alphabetically
 for (i in 1:nrow(hippie_ukb_assays_sorted)) {
- sorted <- sort(c(hippie_ukb_assays_sorted[i, 1], hippie_ukb_assays_sorted[i, 2]))
- hippie_ukb_assays_sorted[i, 1] <- sorted[1]
- hippie_ukb_assays_sorted[i, 2] <- sorted[2]
+  sorted <- sort(c(hippie_ukb_assays_sorted[i, 1], hippie_ukb_assays_sorted[i, 2]))
+  hippie_ukb_assays_sorted[i, 1] <- sorted[1]
+  hippie_ukb_assays_sorted[i, 2] <- sorted[2]
 }
 
 # Remove duplicated pairs
