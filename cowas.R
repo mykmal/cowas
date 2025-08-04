@@ -1,4 +1,4 @@
-#!/usr/bin/env Rscript
+#!/usr/bin/env -S Rscript --vanilla
 
 suppressMessages(library(optparse))
 suppressMessages(library(data.table))
