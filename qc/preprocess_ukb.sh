@@ -95,6 +95,8 @@ plink2 --pfile TEMP_7 \
        --make-pgen psam-cols= \
        --out data_cleaned/genotypes
 
+tail -n +2 data_cleaned/genotypes.pvar | cut -f 3,5 > data_cleaned/ukb_alt_alleles.tsv
+
 # Long-range LD regions in GRCh37 are from table S12 of https://www.biorxiv.org/content/10.1101/166298v1
 printf "1 48000000 52000000\n\
 2 86000000 100500000\n\
