@@ -51,7 +51,7 @@ calculate_distance <- function(results) {
 # Calculate the average Pearson correlation between protein pairs in the provided data table
 calculate_correlation <- function(results) {
   
-  correlation_sum <- 0
+  correlations <- 0
   
   # Loop through all protein pairs
   for (pair in 1:nrow(results)) {
@@ -93,24 +93,29 @@ calculate_correlation <- function(results) {
       current_data[, (protein) := regression$residuals]
     }
     
-    # Finally, calculate the correlation between the two proteins in this pair
-    correlation_sum <- correlation_sum + cor(current_data[[protein_a]],
-                                             current_data[[protein_b]],
-                                             method = "pearson")
+    # Save the correlation between the two proteins in this pair
+    correlations <- cbind(correlations, cor(current_data[[protein_a]],
+                                            current_data[[protein_b]],
+                                            method = "pearson"))
   }
   
-  # Return the average correlation
-  avg_correlation <- unname(correlation_sum) / nrow(results)
+  # Remove the zero value that we started with
+  correlations <- correlations[-1]
+  
+  # Return the average absolute value correlation
+  avg_correlation <- mean(abs(correlations))
   
   return(avg_correlation)
 }
 
 # Load protein annotations
-annotations <- fread(file = "data_cleaned/olink_annotations_lifted.tsv", header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE)
+annotations <- fread(file = "3_olink_annotations_lifted.tsv", header = TRUE, sep = "\t", na.strings = "NA", stringsAsFactors = FALSE)
 
 # Load cleaned COWAS association results for each trait, as processed by create_plots.Rmd
 ldl_results <- fread(file = "figures_tables/csv/results_ldl.csv", header = TRUE, sep = ",", na.strings = "NA", stringsAsFactors = FALSE)
 ad_results <- fread(file = "figures_tables/csv/results_ad.csv", header = TRUE, sep = ",", na.strings = "NA", stringsAsFactors = FALSE)
+ad_igap_results <- fread(file = "figures_tables/csv/results_ad_igap.csv", header = TRUE, sep = ",", na.strings = "NA", stringsAsFactors = FALSE)
+ad_product_results <- fread(file = "figures_tables/csv/results_ad_product.csv", header = TRUE, sep = ",", na.strings = "NA", stringsAsFactors = FALSE)
 pd_results <- fread(file = "figures_tables/csv/results_pd.csv", header = TRUE, sep = ",", na.strings = "NA", stringsAsFactors = FALSE)
 
 # Load protein expression data
@@ -127,6 +132,15 @@ ldl_nonsig <- ldl_results[!paste0(ID_A, ID_B) %in% paste0(ldl_sig$ID_A, ldl_sig$
 ad_sig <- ad_results[PVAL_THETA_JOINT_CO < 0.05 / nrow(ad_results) | PVAL_FSTAT_JOINT < 0.05 / nrow(ad_results), ]
 ad_nonsig <- ad_results[!paste0(ID_A, ID_B) %in% paste0(ad_sig$ID_A, ad_sig$ID_B), ]
 
+ad_igap_sig <- ad_igap_results[PVAL_THETA_JOINT_CO < 0.05 / nrow(ad_igap_results) | PVAL_FSTAT_JOINT < 0.05 / nrow(ad_igap_results), ]
+ad_igap_nonsig <- ad_igap_results[!paste0(ID_A, ID_B) %in% paste0(ad_igap_sig$ID_A, ad_igap_sig$ID_B), ]
+
+ad_prod_sig <- ad_product_results[PVAL_THETA_JOINT_CO < 0.05 / nrow(ad_product_results) | PVAL_FSTAT_JOINT < 0.05 / nrow(ad_product_results), ]
+ad_prod_nonsig <- ad_product_results[!paste0(ID_A, ID_B) %in% paste0(ad_prod_sig$ID_A, ad_prod_sig$ID_B), ]
+
+# Remove GLIPR1 because it only has 106 samples and covariate adjustment fails for it
+ad_prod_nonsig <- ad_prod_nonsig[ID_B != "GLIPR1", ]
+
 pd_sig <- pd_results[PVAL_THETA_JOINT_CO < 0.05 / nrow(pd_results) | PVAL_FSTAT_JOINT < 0.05 / nrow(pd_results), ]
 pd_nonsig <- pd_results[!paste0(ID_A, ID_B) %in% paste0(pd_sig$ID_A, pd_sig$ID_B), ]
 
@@ -137,6 +151,12 @@ ldl_dist_nonsig <- calculate_distance(ldl_nonsig)
 ad_dist_sig <- calculate_distance(ad_sig)
 ad_dist_nonsig <- calculate_distance(ad_nonsig)
 
+ad_igap_dist_sig <- calculate_distance(ad_igap_sig)
+ad_igap_dist_nonsig <- calculate_distance(ad_igap_nonsig)
+
+ad_prod_dist_sig <- calculate_distance(ad_prod_sig)
+ad_prod_dist_nonsig <- calculate_distance(ad_prod_nonsig)
+
 pd_dist_sig <- calculate_distance(pd_sig)
 pd_dist_nonsig <- calculate_distance(pd_nonsig)
 
@@ -146,6 +166,12 @@ ldl_cor_nonsig <- calculate_correlation(ldl_nonsig)
 
 ad_cor_sig <- calculate_correlation(ad_sig)
 ad_cor_nonsig <- calculate_correlation(ad_nonsig)
+
+ad_igap_cor_sig <- calculate_correlation(ad_igap_sig)
+ad_igap_cor_nonsig <- calculate_correlation(ad_igap_nonsig)
+
+ad_prod_cor_sig <- calculate_correlation(ad_prod_sig)
+ad_prod_cor_nonsig <- calculate_correlation(ad_prod_nonsig)
 
 pd_cor_sig <- calculate_correlation(pd_sig)
 pd_cor_nonsig <- calculate_correlation(pd_nonsig)
