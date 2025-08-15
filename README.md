@@ -1,4 +1,4 @@
-# COWAS: The co-expression-wide association study
+# COWAS: CO-expression-Wide Association Studies
 
 This repository provides code for conducting co-expression-wide association studies (COWAS). The goal of COWAS is to identify pairs of genes or proteins whose genetic component of co-expression is associated with complex traits. By considering the genetic regulation of both expression and co-expression, our method is able to boost power relative to standard TWAS and PWAS while also disentangling direct and interaction effects.
 
@@ -25,8 +25,9 @@ install.packages(c("optparse", "data.table", "glmnet", "doMC"))
 3. Download PLINK 2.0 and place it in a directory on your PATH. We used the alpha 7 version of PLINK 2.0. In particular, we relied on PLINK v2.0.0-a.7LM AVX2 AMD (27 Jun 2025) because our cluster has modern AMD processors that support the AVX2 standard.
 ```bash
 wget https://s3.amazonaws.com/plink2-assets/plink2_linux_amd_avx2_20250627.zip
-unzip plink2_linux_amd_avx2_20250627.zip && rm plink2_linux_amd_avx2_20250627.zip
-sudo mv plink2 /usr/local/bin/ && rm vcf_subset
+unzip plink2_linux_amd_avx2_20250627.zip plink2
+sudo mv plink2 /usr/local/bin/
+rm plink2_linux_amd_avx2_20250627.zip
 ```
 
 ## Usage guide
@@ -127,7 +128,7 @@ To obtain individual-level data from the UK Biobank you will need to submit an a
 * Data-Field 22828 within Category 100319 (WTCHG imputed genotypes)
 * Data-Field 30900 within Category 1839 (UK Biobank plasma proteomics data)
 
-Next, use PLINK to convert the genotype data to PLINK 2.0 binary format. Our QC scripts assume that the genotypes are stored in chromosome-specific files with filenames `ukb_chr<CHR>.pgen` + `ukb_chr<CHR>.psam` + `ukb_chr<CHR>.pvar`. Furthermore, we assume that the protein expression levels are stored in a tab-separated file named `protein_npx_levels.tsv` beginning with a header line and containing the following four columns: eid, ins_index, protein_id, result. Finally, we assume that the remaining data fields listed above are stored in a single tab-separated file named `ukb_main_dataset.tsv` beginning with a header line and containing the following seven columns: f.eid, f.31.0.0, f.54.0.0, f.21003.0.0, f.22000.0.0, f.22006.0.0, f.22020.0.0. Copy all of these files to a new subfolder named `data_raw` within your main COWAS folder.
+Next, use PLINK to convert the genotype data to PLINK 2.0 binary format. Our QC scripts assume that the genotypes are stored in chromosome-specific files with filenames `ukb_chr<CHR>.pgen` + `ukb_chr<CHR>.psam` + `ukb_chr<CHR>.pvar`. Furthermore, we assume that the protein expression levels are stored in a tab-separated file named `protein_npx_levels.tsv` beginning with a header line and containing the following four columns: eid, ins_index, protein_id, result. Finally, we assume that the remaining data fields listed above are stored in a tab-separated file named `ukb_main_dataset.tsv` beginning with a header line and containing the following seven columns: f.eid, f.31.0.0, f.54.0.0, f.21003.0.0, f.22000.0.0, f.22006.0.0, f.22020.0.0. Copy all of these files to a new subfolder named `data_raw` within your main COWAS folder.
 
 You will also need Data-Coding 143, which is a flat list containing the UniProt name for each assayed protein. Download the file `coding143.tsv` from <https://biobank.ndph.ox.ac.uk/ukb/coding.cgi?id=143> and place it in `data_raw`.
 
@@ -135,7 +136,7 @@ You will also need Data-Coding 143, which is a flat list containing the UniProt 
 
 For LDL cholesterol levels, we used summary statistics data from the Global Lipids Genetics Consortium (GLGC) GWAS conducted by [Graham et al. (2021)](https://www.nature.com/articles/s41586-021-04064-3). Note that this study provides multi-ancestry as well as ancestry-specific results, but we only considered the European results in order to match the genetic ancestry of the UK Biobank. The summary-level associations can be downloaded from <https://csg.sph.umich.edu/willer/public/glgc-lipids2021/results/ancestry_specific/>. Place the unpacked file `LDL_INV_EUR_HRC_1KGP3_others_ALL.meta.singlevar.results` in `data_raw`.
 
-For our primary analysis of Alzheimer's disease, we used summary statistics data from the European Alzheimer & Dementia Biobank (EADB) consortium GWAS conducted by [Bellenguez et al. (2022)](https://www.nature.com/articles/s41588-022-01024-z). This was the largest genetic association study of Alzheimer's disease available at the time of writing. Summary-level associations for the EADB GWAS can be downloaded from <https://ftp.ebi.ac.uk/pub/bases/gwas/summary_statistics/GCST90027001-GCST90028000/GCST90027158/>. Place the unpacked file `GCST90027158_buildGRCh38.tsv` in `data_raw`.
+For our primary analysis of Alzheimer's disease, we used summary statistics data from the European Alzheimer & Dementia Biobank (EADB) consortium GWAS conducted by [Bellenguez et al. (2022)](https://www.nature.com/articles/s41588-022-01024-z). This was the largest genetic association study of Alzheimer's disease available at the time of writing. Summary-level associations for the EADB GWAS can be downloaded from <https://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST90027001-GCST90028000/GCST90027158/>. Place the unpacked file `GCST90027158_buildGRCh38.tsv` in `data_raw`.
 
 Some have questioned the quality of the EADB GWAS because it relied in part on proxy cases, where participants' disease status was imputed from their family history of Alzheimer's disease instead of being clinically diagnosed. Thus, we also considered the largest GWAS of Alzheimer's disease that does not contain proxy cases: the International Genomics of Alzheimer's Project (IGAP) consortium GWAS, which was conducted by [Kunkle et al. (2019)](https://www.nature.com/articles/s41588-019-0358-2). Summary-level associations for the IGAP GWAS can be downloaded from <https://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST007001-GCST008000/GCST007511>. Place the file `Kunkle_etal_Stage1_results.txt` in `data_raw`.
 

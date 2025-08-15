@@ -22,7 +22,7 @@ ukb_chr21\nukb_chr22\n" > TEMP_plink_files.txt
 
 plink2 --pmerge-list TEMP_plink_files.txt pfile \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --pmerge-list-dir data_raw \
        --out TEMP_merged
 
@@ -30,35 +30,35 @@ Rscript --vanilla qc/preprocess_ukb_helper1.R
 
 plink2 --pfile TEMP_merged \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --keep TEMP_high_quality_samples.txt \
        --make-pgen \
        --out TEMP_1
 
 plink2 --pfile TEMP_1 \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --geno 0.1 \
        --make-pgen \
        --out TEMP_2
 
 plink2 --pfile TEMP_2 \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --min-ac 100 \
        --make-pgen \
        --out TEMP_3
 
 plink2 --pfile TEMP_3 \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --min-af 0.01 \
        --make-pgen \
        --out TEMP_4
 
 plink2 --pfile TEMP_4 \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --hwe 1e-15 0 midp \
        --nonfounders \
        --make-pgen \
@@ -68,7 +68,7 @@ awk -v FS='\t' '$3 !~ /^rs/ {print $3}' TEMP_5.pvar > TEMP_no_rsid.txt
 
 plink2 --pfile TEMP_5 \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --exclude TEMP_no_rsid.txt \
        --make-pgen \
        --out TEMP_6
@@ -77,27 +77,27 @@ awk -v FS='\t' '($4 == "A" && $5 == "T") || ($4 == "T" && $5 == "A") || ($4 == "
 
 plink2 --pfile TEMP_6 \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --exclude TEMP_palindromic.txt \
        --make-pgen \
        --out TEMP_7
 
 plink2 --pfile TEMP_7 \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --indep-pairwise 1000 100 0.8 \
        --out TEMP_indep_variants
 
 plink2 --pfile TEMP_7 \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --extract TEMP_indep_variants.prune.in \
        --make-pgen psam-cols= \
        --out data_cleaned/genotypes
 
 tail -n +2 data_cleaned/genotypes.pvar | cut -f 3,5 > data_cleaned/ukb_alt_alleles.tsv
 
-# Long-range LD regions in GRCh37 are from table S12 of https://www.biorxiv.org/content/10.1101/166298v1
+# Long-range LD regions in GRCh37 are from table S13 of https://www.nature.com/articles/s41586-018-0579-z
 printf "1 48000000 52000000\n\
 2 86000000 100500000\n\
 2 134500000 138000000\n\
@@ -124,27 +124,27 @@ printf "1 48000000 52000000\n\
 
 plink2 --pfile data_cleaned/genotypes \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --exclude bed1 TEMP_long_range_ld.txt \
        --make-pgen \
        --out TEMP_PCA_1
 
 plink2 --pfile TEMP_PCA_1 \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --indep-pairwise 1000 100 0.1 \
        --out TEMP_PCA_indep_variants
 
 plink2 --pfile TEMP_PCA_1 \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --extract TEMP_PCA_indep_variants.prune.in \
        --make-pgen \
        --out TEMP_PCA_2
 
 plink2 --pfile TEMP_PCA_2 \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --pca 20 \
        --out TEMP_top20_pcs
 
@@ -156,28 +156,28 @@ Rscript --vanilla qc/preprocess_ukb_helper3.R
 
 plink2 --pfile data_cleaned/genotypes \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --extract TEMP_mutual_LDL_variants.txt \
        --make-pgen psam-cols= \
        --out data_cleaned/genotypes_subset_for_LDL
 
 plink2 --pfile data_cleaned/genotypes \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --extract TEMP_mutual_AD_EADB_variants.txt \
        --make-pgen psam-cols= \
        --out data_cleaned/genotypes_subset_for_AD_EADB
 
 plink2 --pfile data_cleaned/genotypes \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --extract TEMP_mutual_AD_IGAP_variants.txt \
        --make-pgen psam-cols= \
        --out data_cleaned/genotypes_subset_for_AD_IGAP
 
 plink2 --pfile data_cleaned/genotypes \
        --threads 32 \
-       --memory 124000 \
+       --memory 64000 \
        --extract TEMP_mutual_PD_variants.txt \
        --make-pgen psam-cols= \
        --out data_cleaned/genotypes_subset_for_PD
